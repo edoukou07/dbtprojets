@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Financier from './pages/Financier'
 import Occupation from './pages/Occupation'
+import OccupationZoneDetails from './pages/OccupationZoneDetails'
 import Clients from './pages/Clients'
 import Portefeuille from './pages/Portefeuille'
 import Operationnel from './pages/Operationnel'
@@ -27,6 +28,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="financier" element={<Financier />} />
           <Route path="occupation" element={<Occupation />} />
+          <Route path="occupation/zone/:zoneName" element={<OccupationZoneDetails />} />
           <Route path="clients" element={<Clients />} />
           <Route path="portefeuille" element={<Portefeuille />} />
           <Route path="operationnel" element={<Operationnel />} />

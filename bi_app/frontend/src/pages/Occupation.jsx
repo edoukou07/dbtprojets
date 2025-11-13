@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { 
   Building2, 
   MapPin, 
@@ -7,7 +8,8 @@ import {
   Layers,
   AlertCircle,
   CheckCircle,
-  Hash
+  Hash,
+  ExternalLink
 } from 'lucide-react'
 import { occupationAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
@@ -225,11 +227,20 @@ export default function Occupation() {
                     return (
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <MapPin className="w-5 h-5 text-gray-400 mr-2" />
-                            <span className="text-sm font-medium text-gray-900">
-                              {zone.nom_zone || 'N/A'}
-                            </span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <MapPin className="w-5 h-5 text-gray-400 mr-2" />
+                              <span className="text-sm font-medium text-gray-900">
+                                {zone.nom_zone || 'N/A'}
+                              </span>
+                            </div>
+                            <Link
+                              to={`/occupation/zone/${encodeURIComponent(zone.nom_zone)}`}
+                              className="ml-3 text-blue-600 hover:text-blue-800"
+                              title="Voir les détails"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Link>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

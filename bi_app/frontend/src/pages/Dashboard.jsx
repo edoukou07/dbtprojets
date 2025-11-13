@@ -2,32 +2,32 @@ import { useQuery } from '@tanstack/react-query'
 import { DollarSign, Building2, Users, Activity, TrendingUp, TrendingDown } from 'lucide-react'
 import { financierAPI, occupationAPI, clientsAPI, operationnelAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
-import FilterBar from '../components/FilterBar'
 import ExportButton from '../components/ExportButton'
 import AlertsPanel from '../components/AlertsPanel'
-import { useState } from 'react'
 
 export default function Dashboard() {
-  const [filters, setFilters] = useState({})
-
-  const { data: financierData } = useQuery({
-    queryKey: ['financier-summary', filters],
+  const { data: financierData, isLoading: financierLoading } = useQuery({
+    queryKey: ['financier-summary'],
     queryFn: () => financierAPI.getSummary().then(res => res.data),
+    staleTime: 30000,
   })
 
-  const { data: occupationData } = useQuery({
-    queryKey: ['occupation-summary', filters],
+  const { data: occupationData, isLoading: occupationLoading } = useQuery({
+    queryKey: ['occupation-summary'],
     queryFn: () => occupationAPI.getSummary().then(res => res.data),
+    staleTime: 30000,
   })
 
-  const { data: clientsData } = useQuery({
-    queryKey: ['clients-summary', filters],
+  const { data: clientsData, isLoading: clientsLoading } = useQuery({
+    queryKey: ['clients-summary'],
     queryFn: () => clientsAPI.getSummary().then(res => res.data),
+    staleTime: 30000,
   })
 
-  const { data: operationnelData } = useQuery({
-    queryKey: ['operationnel-summary', filters],
+  const { data: operationnelData, isLoading: operationnelLoading } = useQuery({
+    queryKey: ['operationnel-summary'],
     queryFn: () => operationnelAPI.getSummary().then(res => res.data),
+    staleTime: 30000,
   })
 
   const formatCurrency = (value) => {
@@ -58,16 +58,21 @@ export default function Dashboard() {
     { Indicateur: 'Taux Clôture', Valeur: operationnelData?.taux_cloture_moyen || 0, Unité: '%' },
   ]
 
+  const isLoading = financierLoading || occupationLoading || clientsLoading || operationnelLoading
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      {/* FilterBar */}
-      <FilterBar 
-        onFilterChange={setFilters}
-        showZoneFilter={true}
-        showDomaineFilter={true}
-        showComparison={true}
-      />
-
       {/* Header with Export Button */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Tableau de Bord Général</h2>

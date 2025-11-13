@@ -56,6 +56,7 @@ export const occupationAPI = {
   getByZone: () => api.get('/occupation/by_zone/'),
   getDisponibilite: () => api.get('/occupation/disponibilite/'),
   getTopZones: (limit = 5) => api.get('/occupation/top_zones/', { params: { limit } }),
+  getZoneDetails: (zoneName) => api.get('/occupation/zone_details/', { params: { nom_zone: zoneName } }),
 };
 
 // Clients API

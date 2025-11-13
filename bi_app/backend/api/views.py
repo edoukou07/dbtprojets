@@ -48,6 +48,36 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         """Get financial summary statistics"""
         queryset = self.filter_queryset(self.get_queryset())
         
+        # Filtres personnalisés
+        date_debut = request.query_params.get('date_debut')
+        date_fin = request.query_params.get('date_fin')
+        zone_id = request.query_params.get('zone_id')
+        domaine_id = request.query_params.get('domaine_id')
+        
+        # Appliquer les filtres de dates (format YYYY-MM-DD)
+        if date_debut:
+            try:
+                date_obj = datetime.strptime(date_debut, '%Y-%m-%d')
+                queryset = queryset.filter(annee__gte=date_obj.year)
+                queryset = queryset.filter(Q(annee__gt=date_obj.year) | Q(mois__gte=date_obj.month))
+            except ValueError:
+                pass
+        
+        if date_fin:
+            try:
+                date_obj = datetime.strptime(date_fin, '%Y-%m-%d')
+                queryset = queryset.filter(annee__lte=date_obj.year)
+                queryset = queryset.filter(Q(annee__lt=date_obj.year) | Q(mois__lte=date_obj.month))
+            except ValueError:
+                pass
+        
+        # Appliquer les filtres zone et domaine
+        if zone_id:
+            queryset = queryset.filter(nom_zone__icontains=zone_id)
+        
+        if domaine_id:
+            queryset = queryset.filter(domaine_activite_id=domaine_id)
+        
         summary = queryset.aggregate(
             total_factures=Sum('nombre_factures'),
             ca_total=Sum('montant_total_facture'),
@@ -276,6 +306,12 @@ class MartOccupationZonesViewSet(viewsets.ReadOnlyModelViewSet):
         """Get occupation summary statistics"""
         queryset = self.get_queryset()
         
+        # Filtres personnalisés
+        zone_id = request.query_params.get('zone_id')
+        
+        if zone_id:
+            queryset = queryset.filter(nom_zone__icontains=zone_id)
+        
         summary = queryset.aggregate(
             total_lots=Sum('nombre_total_lots'),
             lots_disponibles=Sum('lots_disponibles'),
@@ -371,6 +407,49 @@ class MartOccupationZonesViewSet(viewsets.ReadOnlyModelViewSet):
             'moins_occupees': low_occupied,
         })
 
+    @action(detail=False, methods=['get'])
+    def zone_details(self, request):
+        """Get detailed information for a specific zone"""
+        nom_zone = request.query_params.get('nom_zone')
+        
+        if not nom_zone:
+            return Response({'error': 'nom_zone parameter is required'}, status=400)
+        
+        try:
+            zone = self.get_queryset().get(nom_zone__iexact=nom_zone)
+            serializer = self.get_serializer(zone)
+            
+            # Ajouter des métriques calculées
+            data = serializer.data
+            
+            # Calculs supplémentaires
+            if zone.nombre_total_lots:
+                data['pct_disponible'] = round((zone.lots_disponibles or 0) / zone.nombre_total_lots * 100, 2)
+                data['pct_attribues'] = round((zone.lots_attribues or 0) / zone.nombre_total_lots * 100, 2)
+                data['pct_reserves'] = round((zone.lots_reserves or 0) / zone.nombre_total_lots * 100, 2)
+            else:
+                data['pct_disponible'] = 0
+                data['pct_attribues'] = 0
+                data['pct_reserves'] = 0
+            
+            if zone.superficie_totale:
+                data['pct_superficie_disponible'] = round((zone.superficie_disponible or 0) / zone.superficie_totale * 100, 2)
+                data['pct_superficie_attribuee'] = round((zone.superficie_attribuee or 0) / zone.superficie_totale * 100, 2)
+            else:
+                data['pct_superficie_disponible'] = 0
+                data['pct_superficie_attribuee'] = 0
+            
+            # Valeur moyenne par lot
+            if zone.nombre_total_lots and zone.valeur_totale_lots:
+                data['valeur_moyenne_lot'] = round(zone.valeur_totale_lots / zone.nombre_total_lots, 2)
+            else:
+                data['valeur_moyenne_lot'] = 0
+            
+            return Response(data)
+            
+        except MartOccupationZones.DoesNotExist:
+            return Response({'error': f'Zone "{nom_zone}" not found'}, status=404)
+
 
 class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -396,6 +475,16 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
         from datetime import timedelta
         
         queryset = self.filter_queryset(self.get_queryset())
+        
+        # Filtres personnalisés
+        zone_id = request.query_params.get('zone_id')
+        domaine_id = request.query_params.get('domaine_id')
+        
+        if zone_id:
+            queryset = queryset.filter(nom_zone__icontains=zone_id)
+        
+        if domaine_id:
+            queryset = queryset.filter(secteur_activite__icontains=domaine_id)
         
         summary = queryset.aggregate(
             total_clients=Count('entreprise_id'),
@@ -709,6 +798,26 @@ class MartKPIOperationnelsViewSet(viewsets.ReadOnlyModelViewSet):
     def summary(self, request):
         """Get operational KPIs summary"""
         queryset = self.filter_queryset(self.get_queryset())
+        
+        # Filtres personnalisés
+        date_debut = request.query_params.get('date_debut')
+        date_fin = request.query_params.get('date_fin')
+        zone_id = request.query_params.get('zone_id')
+        
+        # Appliquer les filtres de dates
+        if date_debut:
+            try:
+                date_obj = datetime.strptime(date_debut, '%Y-%m-%d')
+                queryset = queryset.filter(annee__gte=date_obj.year)
+            except ValueError:
+                pass
+        
+        if date_fin:
+            try:
+                date_obj = datetime.strptime(date_fin, '%Y-%m-%d')
+                queryset = queryset.filter(annee__lte=date_obj.year)
+            except ValueError:
+                pass
         
         summary = queryset.aggregate(
             # Collectes
