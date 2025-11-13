@@ -1,0 +1,53 @@
+name: 'sigeti_dwh'
+version: '1.0.0'
+config-version: 2
+
+profile: 'sigeti_dwh'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  sigeti_dwh:
+    # Staging models - sources brutes
+    staging:
+      +materialized: view
+      +schema: staging
+      
+    # Dimensions - tables SCD Type 2
+    dimensions:
+      +materialized: table
+      +schema: dimensions
+      
+    # Facts - tables de faits
+    facts:
+      +materialized: incremental
+      +schema: facts
+      +on_schema_change: "append_new_columns"
+      
+    # Data Marts - vues analytiques
+    marts:
+      +materialized: view
+      +schema: marts
+      financier:
+        +schema: marts_financier
+      occupation:
+        +schema: marts_occupation
+      clients:
+        +schema: marts_clients
+      operationnel:
+        +schema: marts_operationnel
+
+vars:
+  # Variables pour les dates de début de l'historique
+  start_date: '2020-01-01'
+  # Fuseau horaire
+  timezone: 'Africa/Abidjan'

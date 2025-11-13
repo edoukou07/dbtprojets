@@ -1,0 +1,75 @@
+version: 2
+
+sources:
+  - name: sigeti_source
+    description: "Base de données source SIGETI"
+    database: "{{ env_var('SOURCE_DB_NAME', 'sigeti_node_db') }}"
+    schema: public
+    
+    tables:
+      - name: entreprises
+        description: "Entreprises enregistrées dans le système"
+        columns:
+          - name: id
+            description: "Identifiant unique"
+            tests:
+              - unique
+              - not_null
+              
+      - name: lots
+        description: "Parcelles de terrain dans les zones industrielles"
+        columns:
+          - name: id
+            description: "Identifiant unique du lot"
+            tests:
+              - unique
+              - not_null
+              
+      - name: zones_industrielles
+        description: "Zones industrielles"
+        columns:
+          - name: id
+            tests:
+              - unique
+              - not_null
+              
+      - name: factures
+        description: "Factures émises"
+        columns:
+          - name: id
+            tests:
+              - unique
+              - not_null
+              
+      - name: paiement_factures
+        description: "Paiements de factures"
+        
+      - name: demandes_attribution
+        description: "Demandes d'attribution de lots"
+        
+      - name: collectes
+        description: "Opérations de collecte de revenus"
+        
+      - name: indemnisations
+        description: "Indemnisations des ayants-droits"
+        
+      - name: ayants_droits
+        description: "Bénéficiaires d'indemnisations"
+        
+      - name: domaines_activites
+        description: "Secteurs d'activité des entreprises"
+        
+      - name: operateurs
+        description: "Opérateurs du système"
+        
+      - name: decisions_commission
+        description: "Décisions des commissions d'attribution"
+        
+      - name: audit_logs
+        description: "Logs d'audit du système"
+        
+      - name: conventions
+        description: "Conventions signées"
+        
+      - name: purges
+        description: "Opérations de purge/libération de terrain"

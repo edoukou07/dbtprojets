@@ -1,0 +1,30 @@
+# Configuration de déploiement pour Prefect 3.x
+# Utilisation: prefect deploy --prefect-file prefect.yaml
+
+# Build configuration
+build: null
+
+# Push configuration  
+push: null
+
+# Pull configuration
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: C:\Users\hynco\Desktop\DWH_SIG
+
+# Deployments
+deployments:
+- name: sigeti-dwh-daily
+  version: "1.0.0"
+  tags: 
+    - production
+    - dwh
+    - daily
+  description: "Pipeline quotidien de rafraîchissement complet du Data Warehouse SIGETI"
+  schedule:
+    cron: "0 2 * * *"
+    timezone: "Africa/Abidjan"
+  entrypoint: prefect/flows/sigeti_dwh_flow.py:sigeti_dwh_full_refresh
+  work_pool:
+    name: default-agent-pool
+  parameters: {}

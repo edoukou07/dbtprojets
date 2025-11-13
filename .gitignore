@@ -1,0 +1,87 @@
+target/# Fichiers temporaires
+
+dbt_packages/*.pyc
+
+logs/__pycache__/
+
+*.log*.py[cod]
+
+.env*$py.class
+
+venv/
+
+__pycache__/# Environnements virtuels
+
+*.pycvenv/
+
+.prefect/env/
+
+.DS_StoreENV/
+
+*.swp.venv
+
+*.swo
+
+.vscode/# Logs
+
+.idea/*.log
+
+logs/
+airflow/logs/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/profiles.yml
+dbt/.user.yml
+
+# Base de données
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets (ne jamais commiter)
+.env.local
+.env.production
+secrets/
+*.pem
+*.key
+
+# Backups
+backups/
+*.dump
+*.backup
+*.bak
+
+# Données
+data/
+*.csv
+*.parquet
+
+# pgAdmin
+pgadmin_data/
+
+# Documentation générée
+dbt/target/
+site/
+
+# Node modules (si utilisé)
+node_modules/
+
+# Volumes Docker persistants
+postgres_data/
