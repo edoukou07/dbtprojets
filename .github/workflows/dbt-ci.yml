@@ -1,0 +1,97 @@
+name: DBT CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    name: Lint and Test dbt Models
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sigeti_test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          dbt deps
+      
+      - name: Run dbt debug
+        run: dbt debug
+        env:
+          DBT_PROFILES_DIR: .
+          DWH_DB_PASSWORD: postgres
+      
+      - name: Run dbt compile
+        run: dbt compile
+      
+      - name: Run dbt tests
+        run: dbt test
+      
+      - name: Generate dbt docs
+        run: dbt docs generate
+      
+      - name: Upload dbt artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dbt-artifacts
+          path: |
+            target/manifest.json
+            target/catalog.json
+            target/run_results.json
+  
+  deploy-production:
+    name: Deploy to Production
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Run dbt build (production)
+        run: dbt build --target prod
+        env:
+          DBT_PROFILES_DIR: .
+          DWH_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Déploiement production réussi!"
+      
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Échec du déploiement production"
