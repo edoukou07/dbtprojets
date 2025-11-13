@@ -12,13 +12,17 @@ from analytics.models import (
     MartPerformanceFinanciere,
     MartOccupationZones,
     MartPortefeuilleClients,
-    MartKPIOperationnels
+    MartKPIOperationnels,
+    Alert,
+    AlertThreshold
 )
 from .serializers import (
     MartPerformanceFinanciereSerializer,
     MartOccupationZonesSerializer,
     MartPortefeuilleClientsSerializer,
-    MartKPIOperationnelsSerializer
+    MartKPIOperationnelsSerializer,
+    AlertSerializer,
+    AlertThresholdSerializer
 )
 
 
@@ -1073,3 +1077,210 @@ def current_user_view(request):
         'last_name': user.last_name,
         'is_staff': user.is_staff,
     })
+
+
+class AlertViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for Alerts
+    
+    Actions:
+    - list: Get all alerts (filterable by status, severity, type)
+    - retrieve: Get a specific alert
+    - create: Create a new alert (usually done automatically)
+    - update/partial_update: Update alert (e.g., acknowledge, resolve)
+    - destroy: Delete an alert
+    - active: Get only active alerts
+    - acknowledge: Mark alert as acknowledged
+    - resolve: Mark alert as resolved
+    - check_thresholds: Check all thresholds and create alerts
+    """
+    queryset = Alert.objects.all()
+    serializer_class = AlertSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status', 'severity', 'alert_type']
+    ordering_fields = ['created_at', 'severity']
+    ordering = ['-created_at']
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get only active (non-resolved) alerts"""
+        active_alerts = self.queryset.filter(status='active')
+        serializer = self.get_serializer(active_alerts, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def acknowledge(self, request, pk=None):
+        """Acknowledge an alert"""
+        alert = self.get_object()
+        alert.status = 'acknowledged'
+        alert.acknowledged_at = datetime.now()
+        alert.acknowledged_by = request.user.username if hasattr(request, 'user') else 'system'
+        alert.save()
+        
+        serializer = self.get_serializer(alert)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Resolve an alert"""
+        alert = self.get_object()
+        alert.status = 'resolved'
+        alert.resolved_at = datetime.now()
+        alert.save()
+        
+        serializer = self.get_serializer(alert)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def check_thresholds(self, request):
+        """
+        Check all active thresholds and create alerts if needed
+        This would typically be called by a scheduler (Celery, cron, etc.)
+        """
+        from django.utils import timezone
+        
+        thresholds = AlertThreshold.objects.filter(is_active=True)
+        alerts_created = []
+        
+        for threshold in thresholds:
+            # Taux de recouvrement
+            if threshold.alert_type == 'taux_recouvrement':
+                recent_data = MartPerformanceFinanciere.objects.all().order_by('-annee', '-mois')[:1]
+                if recent_data.exists():
+                    data = recent_data.first()
+                    if data.taux_recouvrement_moyen is not None:
+                        taux = float(data.taux_recouvrement_moyen)
+                        threshold_val = float(threshold.threshold_value)
+                        
+                        should_alert = False
+                        if threshold.threshold_operator == '<' and taux < threshold_val:
+                            should_alert = True
+                        elif threshold.threshold_operator == '>' and taux > threshold_val:
+                            should_alert = True
+                        elif threshold.threshold_operator == '<=' and taux <= threshold_val:
+                            should_alert = True
+                        elif threshold.threshold_operator == '>=' and taux >= threshold_val:
+                            should_alert = True
+                        
+                        if should_alert:
+                            # Vérifier si une alerte similaire existe déjà (dernières 24h)
+                            existing_alert = Alert.objects.filter(
+                                alert_type='taux_recouvrement',
+                                status='active',
+                                created_at__gte=timezone.now() - timezone.timedelta(hours=24)
+                            ).first()
+                            
+                            if not existing_alert:
+                                alert = Alert.objects.create(
+                                    alert_type='taux_recouvrement',
+                                    severity='high' if taux < 50 else 'medium',
+                                    title=f"Taux de recouvrement critique: {taux:.1f}%",
+                                    message=f"Le taux de recouvrement moyen ({taux:.1f}%) est en dessous du seuil de {threshold_val}%. Action immédiate requise.",
+                                    threshold_value=threshold_val,
+                                    actual_value=taux,
+                                    context_data={
+                                        'annee': data.annee,
+                                        'mois': data.mois,
+                                        'zone': data.nom_zone
+                                    }
+                                )
+                                alerts_created.append(alert.id)
+            
+            # Factures impayées anciennes
+            elif threshold.alert_type == 'facture_impayee':
+                old_invoices = MartPerformanceFinanciere.objects.filter(
+                    montant_impaye__gt=0,
+                    delai_moyen_paiement__gt=threshold.threshold_value
+                )
+                
+                if old_invoices.exists():
+                    total_impaye = old_invoices.aggregate(total=Sum('montant_impaye'))['total']
+                    
+                    existing_alert = Alert.objects.filter(
+                        alert_type='facture_impayee',
+                        status='active',
+                        created_at__gte=timezone.now() - timezone.timedelta(days=7)
+                    ).first()
+                    
+                    if not existing_alert:
+                        alert = Alert.objects.create(
+                            alert_type='facture_impayee',
+                            severity='critical',
+                            title=f"{old_invoices.count()} factures impayées anciennes",
+                            message=f"Il y a {old_invoices.count()} factures avec un délai de paiement > {threshold.threshold_value} jours. Montant total impayé: {total_impaye:,.0f} F CFA",
+                            threshold_value=threshold.threshold_value,
+                            actual_value=old_invoices.count(),
+                            context_data={
+                                'count': old_invoices.count(),
+                                'total_impaye': float(total_impaye) if total_impaye else 0
+                            }
+                        )
+                        alerts_created.append(alert.id)
+            
+            # Occupation faible
+            elif threshold.alert_type == 'occupation_faible':
+                low_occupation_zones = MartOccupationZones.objects.filter(
+                    taux_occupation_pct__lt=threshold.threshold_value
+                )
+                
+                for zone in low_occupation_zones:
+                    existing_alert = Alert.objects.filter(
+                        alert_type='occupation_faible',
+                        status='active',
+                        context_data__zone_id=zone.zone_id,
+                        created_at__gte=timezone.now() - timezone.timedelta(days=7)
+                    ).first()
+                    
+                    if not existing_alert:
+                        alert = Alert.objects.create(
+                            alert_type='occupation_faible',
+                            severity='medium',
+                            title=f"Taux d'occupation faible: {zone.nom_zone}",
+                            message=f"La zone {zone.nom_zone} a un taux d'occupation de {zone.taux_occupation_pct:.1f}%, en dessous du seuil de {threshold.threshold_value}%.",
+                            threshold_value=threshold.threshold_value,
+                            actual_value=zone.taux_occupation_pct,
+                            context_data={
+                                'zone_id': zone.zone_id,
+                                'zone_nom': zone.nom_zone,
+                                'lots_disponibles': zone.lots_disponibles
+                            }
+                        )
+                        alerts_created.append(alert.id)
+            
+            # Mettre à jour last_checked
+            threshold.last_checked = timezone.now()
+            threshold.save()
+        
+        return Response({
+            'success': True,
+            'alerts_created': len(alerts_created),
+            'alert_ids': alerts_created
+        })
+
+
+class AlertThresholdViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for Alert Thresholds Configuration
+    
+    Actions:
+    - list: Get all configured thresholds
+    - retrieve: Get a specific threshold
+    - create: Create a new threshold
+    - update/partial_update: Update threshold configuration
+    - destroy: Delete a threshold
+    - toggle: Enable/disable a threshold
+    """
+    queryset = AlertThreshold.objects.all()
+    serializer_class = AlertThresholdSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['is_active', 'alert_type']
+    
+    @action(detail=True, methods=['post'])
+    def toggle(self, request, pk=None):
+        """Toggle threshold active status"""
+        threshold = self.get_object()
+        threshold.is_active = not threshold.is_active
+        threshold.save()
+        
+        serializer = self.get_serializer(threshold)
+        return Response(serializer.data)

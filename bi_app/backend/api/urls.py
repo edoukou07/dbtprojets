@@ -8,6 +8,8 @@ from .views import (
     MartOccupationZonesViewSet,
     MartPortefeuilleClientsViewSet,
     MartKPIOperationnelsViewSet,
+    AlertViewSet,
+    AlertThresholdViewSet,
     login_view,
     logout_view,
     current_user_view,
@@ -18,6 +20,8 @@ router.register(r'financier', MartPerformanceFinanciereViewSet, basename='financ
 router.register(r'occupation', MartOccupationZonesViewSet, basename='occupation')
 router.register(r'clients', MartPortefeuilleClientsViewSet, basename='clients')
 router.register(r'operationnel', MartKPIOperationnelsViewSet, basename='operationnel')
+router.register(r'alerts', AlertViewSet, basename='alerts')
+router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thresholds')
 
 urlpatterns = [
     path('', include(router.urls)),

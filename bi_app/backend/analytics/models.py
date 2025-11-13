@@ -156,3 +156,106 @@ class MartKPIOperationnels(models.Model):
         # Indiquer à Django de ne pas chercher de PK (row_number utilisé en interne)
         # Django va utiliser toutes les colonnes comme identifiant unique
         get_latest_by = ['-annee', '-trimestre']
+
+
+class Alert(models.Model):
+    """Système d'alertes pour les seuils critiques"""
+    
+    ALERT_TYPES = [
+        ('taux_recouvrement', 'Taux de Recouvrement Critique'),
+        ('facture_impayee', 'Facture Impayée Ancienne'),
+        ('client_inactif', 'Client Inactif'),
+        ('occupation_faible', 'Taux d\'Occupation Faible'),
+        ('objectif_non_atteint', 'Objectif Non Atteint'),
+    ]
+    
+    SEVERITY_LEVELS = [
+        ('low', 'Faible'),
+        ('medium', 'Moyen'),
+        ('high', 'Élevé'),
+        ('critical', 'Critique'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('acknowledged', 'Acquittée'),
+        ('resolved', 'Résolue'),
+        ('dismissed', 'Ignorée'),
+    ]
+    
+    alert_type = models.CharField(max_length=50, choices=ALERT_TYPES)
+    severity = models.CharField(max_length=20, choices=SEVERITY_LEVELS, default='medium')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    
+    # Données contextuelles (JSON)
+    context_data = models.JSONField(null=True, blank=True)
+    
+    # Métadonnées
+    threshold_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    actual_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Utilisateur (optionnel)
+    acknowledged_by = models.CharField(max_length=100, null=True, blank=True)
+    
+    class Meta:
+        managed = True
+        db_table = 'bi_alerts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'severity']),
+            models.Index(fields=['alert_type']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_severity_display()} - {self.title}"
+
+
+class AlertThreshold(models.Model):
+    """Configuration des seuils d'alerte"""
+    
+    alert_type = models.CharField(max_length=50, unique=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Seuils
+    threshold_value = models.DecimalField(max_digits=10, decimal_places=2)
+    threshold_operator = models.CharField(
+        max_length=10,
+        choices=[
+            ('<', 'Inférieur à'),
+            ('>', 'Supérieur à'),
+            ('<=', 'Inférieur ou égal à'),
+            ('>=', 'Supérieur ou égal à'),
+            ('==', 'Égal à'),
+        ],
+        default='<'
+    )
+    
+    # Fréquence de vérification (en minutes)
+    check_interval = models.IntegerField(default=60)
+    
+    # Notification
+    send_email = models.BooleanField(default=False)
+    email_recipients = models.TextField(null=True, blank=True, help_text="Liste d'emails séparés par des virgules")
+    
+    # Audit
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_checked = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        managed = True
+        db_table = 'bi_alert_thresholds'
+        ordering = ['alert_type']
+    
+    def __str__(self):
+        return f"{self.alert_type} {self.threshold_operator} {self.threshold_value}"

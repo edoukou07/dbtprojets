@@ -2,25 +2,31 @@ import { useQuery } from '@tanstack/react-query'
 import { DollarSign, Building2, Users, Activity, TrendingUp, TrendingDown } from 'lucide-react'
 import { financierAPI, occupationAPI, clientsAPI, operationnelAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
+import FilterBar from '../components/FilterBar'
+import ExportButton from '../components/ExportButton'
+import AlertsPanel from '../components/AlertsPanel'
+import { useState } from 'react'
 
 export default function Dashboard() {
+  const [filters, setFilters] = useState({})
+
   const { data: financierData } = useQuery({
-    queryKey: ['financier-summary'],
+    queryKey: ['financier-summary', filters],
     queryFn: () => financierAPI.getSummary().then(res => res.data),
   })
 
   const { data: occupationData } = useQuery({
-    queryKey: ['occupation-summary'],
+    queryKey: ['occupation-summary', filters],
     queryFn: () => occupationAPI.getSummary().then(res => res.data),
   })
 
   const { data: clientsData } = useQuery({
-    queryKey: ['clients-summary'],
+    queryKey: ['clients-summary', filters],
     queryFn: () => clientsAPI.getSummary().then(res => res.data),
   })
 
   const { data: operationnelData } = useQuery({
-    queryKey: ['operationnel-summary'],
+    queryKey: ['operationnel-summary', filters],
     queryFn: () => operationnelAPI.getSummary().then(res => res.data),
   })
 
@@ -38,8 +44,43 @@ export default function Dashboard() {
     return value.toFixed(1) + '%'
   }
 
+  // Préparer les données pour l'export
+  const exportData = [
+    { Indicateur: 'CA Facturé', Valeur: financierData?.ca_total || 0, Unité: 'FCFA' },
+    { Indicateur: 'CA Payé', Valeur: financierData?.ca_paye || 0, Unité: 'FCFA' },
+    { Indicateur: 'Taux Paiement', Valeur: financierData?.taux_paiement_moyen || 0, Unité: '%' },
+    { Indicateur: 'Taux Recouvrement', Valeur: financierData?.taux_recouvrement_moyen || 0, Unité: '%' },
+    { Indicateur: 'Taux Occupation', Valeur: occupationData?.taux_occupation_moyen || 0, Unité: '%' },
+    { Indicateur: 'Lots Disponibles', Valeur: occupationData?.total_lots_disponibles || 0, Unité: 'lots' },
+    { Indicateur: 'Total Clients', Valeur: clientsData?.total_clients || 0, Unité: 'clients' },
+    { Indicateur: 'CA Moyen par Client', Valeur: clientsData?.ca_moyen_par_client || 0, Unité: 'FCFA' },
+    { Indicateur: 'Total Collectes', Valeur: operationnelData?.total_collectes || 0, Unité: 'collectes' },
+    { Indicateur: 'Taux Clôture', Valeur: operationnelData?.taux_cloture_moyen || 0, Unité: '%' },
+  ]
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* FilterBar */}
+      <FilterBar 
+        onFilterChange={setFilters}
+        showZoneFilter={true}
+        showDomaineFilter={true}
+        showComparison={true}
+      />
+
+      {/* Header with Export Button */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Tableau de Bord Général</h2>
+        <ExportButton 
+          data={exportData}
+          filename="dashboard_sigeti"
+          title="Tableau de Bord SIGETI - Synthèse Générale"
+        />
+      </div>
+
+      {/* Alerts Panel */}
+      <AlertsPanel showOnlyActive={true} maxAlerts={3} />
+
       {/* Financial KPIs */}
       <section>
         <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
