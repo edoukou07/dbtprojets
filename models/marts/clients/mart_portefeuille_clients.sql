@@ -1,10 +1,16 @@
 {{
     config(
-        materialized='view'
+        materialized='table',
+        indexes=[
+            {'columns': ['entreprise_id']},
+            {'columns': ['secteur_activite']},
+            {'columns': ['segment_client']}
+        ]
     )
 }}
 
 -- Mart Clients - Analyse du portefeuille clients/entreprises
+-- Matérialisé en table pour performance optimale des dashboards
 
 with entreprises as (
     select * from {{ ref('dim_entreprises') }}

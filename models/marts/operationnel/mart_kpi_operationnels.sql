@@ -1,10 +1,16 @@
 {{
     config(
-        materialized='view'
+        materialized='table',
+        indexes=[
+            {'columns': ['annee']},
+            {'columns': ['annee', 'trimestre']},
+            {'columns': ['annee', 'nom_mois']}
+        ]
     )
 }}
 
 -- Mart Opérationnel - Indicateurs de performance opérationnelle
+-- Matérialisé en table pour performance optimale des dashboards
 
 with collectes as (
     select * from {{ ref('fait_collectes') }}

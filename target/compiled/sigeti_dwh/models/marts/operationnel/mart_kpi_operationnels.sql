@@ -1,6 +1,7 @@
 
 
 -- Mart Opérationnel - Indicateurs de performance opérationnelle
+-- Matérialisé en table pour performance optimale des dashboards
 
 with collectes as (
     select * from "sigeti_node_db"."dwh_facts"."fait_collectes"

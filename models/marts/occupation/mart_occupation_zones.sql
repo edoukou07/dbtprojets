@@ -1,10 +1,15 @@
 {{
     config(
-        materialized='view'
+        materialized='table',
+        indexes=[
+            {'columns': ['zone_id']},
+            {'columns': ['nom_zone']}
+        ]
     )
 }}
 
 -- Mart Occupation - Analyse de l'occupation des lots et zones
+-- Matérialisé en table pour performance optimale des dashboards
 
 with lots as (
     select * from {{ ref('dim_lots') }}

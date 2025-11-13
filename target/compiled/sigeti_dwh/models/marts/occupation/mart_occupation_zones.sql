@@ -1,6 +1,7 @@
 
 
 -- Mart Occupation - Analyse de l'occupation des lots et zones
+-- Matérialisé en table pour performance optimale des dashboards
 
 with lots as (
     select * from "sigeti_node_db"."dwh_dimensions"."dim_lots"

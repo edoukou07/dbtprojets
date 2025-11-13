@@ -1,6 +1,7 @@
 
 
 -- Mart Financier - Vue complète pour analyse financière
+-- Matérialisé en table pour performance optimale des dashboards
 
 with factures as (
     select * from "sigeti_node_db"."dwh_facts"."fait_factures"

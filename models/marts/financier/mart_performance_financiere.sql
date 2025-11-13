@@ -1,10 +1,16 @@
 {{
     config(
-        materialized='view'
+        materialized='table',
+        indexes=[
+            {'columns': ['annee']},
+            {'columns': ['annee', 'mois']},
+            {'columns': ['nom_zone']}
+        ]
     )
 }}
 
 -- Mart Financier - Vue complète pour analyse financière
+-- Matérialisé en table pour performance optimale des dashboards
 
 with factures as (
     select * from {{ ref('fait_factures') }}

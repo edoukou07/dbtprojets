@@ -1,11 +1,17 @@
 
-  create view "sigeti_node_db"."dwh_marts_operationnel"."mart_kpi_operationnels__dbt_tmp"
+  
     
-    
-  as (
+
+  create  table "sigeti_node_db"."dwh_marts_operationnel"."mart_kpi_operationnels__dbt_tmp"
+  
+  
+    as
+  
+  (
     
 
 -- Mart Opérationnel - Indicateurs de performance opérationnelle
+-- Matérialisé en table pour performance optimale des dashboards
 
 with collectes as (
     select * from "sigeti_node_db"."dwh_facts"."fait_collectes"
@@ -153,3 +159,4 @@ left join performance_facturation f
     
 order by c.annee desc, c.trimestre desc
   );
+  

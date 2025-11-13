@@ -1,11 +1,17 @@
 
-  create view "sigeti_node_db"."dwh_marts_occupation"."mart_occupation_zones__dbt_tmp"
+  
     
-    
-  as (
+
+  create  table "sigeti_node_db"."dwh_marts_occupation"."mart_occupation_zones__dbt_tmp"
+  
+  
+    as
+  
+  (
     
 
 -- Mart Occupation - Analyse de l'occupation des lots et zones
+-- Matérialisé en table pour performance optimale des dashboards
 
 with lots as (
     select * from "sigeti_node_db"."dwh_dimensions"."dim_lots"
@@ -100,3 +106,4 @@ select
 from occupation_lots o
 left join attributions_stats a on o.zone_id = a.zone_id
   );
+  

@@ -1,11 +1,17 @@
 
-  create view "sigeti_node_db"."dwh_marts_financier"."mart_performance_financiere__dbt_tmp"
+  
     
-    
-  as (
+
+  create  table "sigeti_node_db"."dwh_marts_financier"."mart_performance_financiere__dbt_tmp"
+  
+  
+    as
+  
+  (
     
 
 -- Mart Financier - Vue complète pour analyse financière
+-- Matérialisé en table pour performance optimale des dashboards
 
 with factures as (
     select * from "sigeti_node_db"."dwh_facts"."fait_factures"
@@ -104,3 +110,4 @@ left join collectes_aggregees c
     on f.annee = c.annee 
     and f.trimestre = c.trimestre
   );
+  

@@ -1,6 +1,7 @@
 
 
 -- Mart Clients - Analyse du portefeuille clients/entreprises
+-- Matérialisé en table pour performance optimale des dashboards
 
 with entreprises as (
     select * from "sigeti_node_db"."dwh_dimensions"."dim_entreprises"

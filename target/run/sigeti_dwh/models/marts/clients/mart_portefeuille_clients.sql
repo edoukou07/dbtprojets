@@ -1,11 +1,17 @@
 
-  create view "sigeti_node_db"."dwh_marts_clients"."mart_portefeuille_clients__dbt_tmp"
+  
     
-    
-  as (
+
+  create  table "sigeti_node_db"."dwh_marts_clients"."mart_portefeuille_clients__dbt_tmp"
+  
+  
+    as
+  
+  (
     
 
 -- Mart Clients - Analyse du portefeuille clients/entreprises
+-- Matérialisé en table pour performance optimale des dashboards
 
 with entreprises as (
     select * from "sigeti_node_db"."dwh_dimensions"."dim_entreprises"
@@ -95,3 +101,4 @@ clients_stats as (
 select * from clients_stats
 order by chiffre_affaires_total desc nulls last
   );
+  
