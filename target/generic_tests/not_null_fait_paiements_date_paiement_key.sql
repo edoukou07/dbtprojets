@@ -1,0 +1,1 @@
+{{ test_not_null(column_name="date_paiement_key", model=get_where_subquery(ref('fait_paiements'))) }}

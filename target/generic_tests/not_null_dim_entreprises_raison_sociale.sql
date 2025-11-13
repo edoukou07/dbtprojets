@@ -1,0 +1,1 @@
+{{ test_not_null(column_name="raison_sociale", model=get_where_subquery(ref('dim_entreprises'))) }}

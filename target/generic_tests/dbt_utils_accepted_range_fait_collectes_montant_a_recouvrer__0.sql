@@ -1,0 +1,1 @@
+{{ dbt_utils.test_accepted_range(column_name="montant_a_recouvrer", min_value=0, model=get_where_subquery(ref('fait_collectes'))) }}

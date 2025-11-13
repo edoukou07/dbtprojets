@@ -1,0 +1,1 @@
+{{ dbt_utils.test_not_null_proportion(at_least=0.95, column_name="montant_total", model=get_where_subquery(ref('fait_factures'))) }}

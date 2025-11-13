@@ -85,3 +85,4 @@ node_modules/
 
 # Volumes Docker persistants
 postgres_data/
+dbt_internal_packages/

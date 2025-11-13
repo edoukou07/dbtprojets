@@ -1,0 +1,1 @@
+{{ dbt_utils.test_accepted_range(column_name="superficie", max_value=1000000, min_value=0, model=get_where_subquery(ref('dim_lots'))) }}
