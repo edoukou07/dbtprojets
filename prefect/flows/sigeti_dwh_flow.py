@@ -10,6 +10,7 @@ from datetime import datetime
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
+import subprocess
 
 # Configuration
 DBT_PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
@@ -270,11 +271,156 @@ def run_tests():
         return False
 
 
+@task(name="Create New Partitions", retries=1)
+def create_new_partitions():
+    """Crée automatiquement les nouvelles partitions si nécessaire (année N+1, N+2)"""
+    print("\n" + "="*70)
+    print("[MAINTENANCE] Creation automatique des nouvelles partitions...")
+    print("="*70)
+    
+    dwh_dbname = os.getenv('DWH_DB_NAME', 'sigeti_node_db')
+    dwh_password = os.getenv('DBT_PASSWORD')
+    
+    # Années à créer (année courante + 2 ans futurs)
+    current_year = datetime.now().year
+    years_to_check = [current_year, current_year + 1, current_year + 2]
+    
+    env = os.environ.copy()
+    env['PGPASSWORD'] = dwh_password
+    env['PGCLIENTENCODING'] = 'UTF8'
+    
+    created_count = 0
+    
+    for year in years_to_check:
+        # Vérifier si la partition existe
+        check_cmd = [
+            'psql',
+            '-h', 'localhost',
+            '-U', 'postgres',
+            '-d', dwh_dbname,
+            '-t',
+            '-c', f"SELECT COUNT(*) FROM pg_tables WHERE schemaname='dwh_facts' AND tablename='fait_attributions_{year}';"
+        ]
+        
+        try:
+            result = subprocess.run(
+                check_cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
+            )
+            
+            count = result.stdout.strip()
+            
+            if count == '0':
+                # Créer la partition
+                print(f"  [INFO] Creation de la partition pour l'annee {year}...")
+                
+                create_cmd = [
+                    'psql',
+                    '-h', 'localhost',
+                    '-U', 'postgres',
+                    '-d', dwh_dbname,
+                    '-c', f"""
+                    CREATE TABLE IF NOT EXISTS dwh_facts.fait_attributions_{year} 
+                    PARTITION OF dwh_facts.fait_attributions
+                    FOR VALUES FROM ({year}0101) TO ({year+1}0101);
+                    
+                    CREATE INDEX IF NOT EXISTS idx_attr_{year}_entreprise ON dwh_facts.fait_attributions_{year}(entreprise_key);
+                    CREATE INDEX IF NOT EXISTS idx_attr_{year}_lot ON dwh_facts.fait_attributions_{year}(lot_key);
+                    CREATE INDEX IF NOT EXISTS idx_attr_{year}_date ON dwh_facts.fait_attributions_{year}(date_demandee_key);
+                    """
+                ]
+                
+                create_result = subprocess.run(
+                    create_cmd,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8'
+                )
+                
+                if create_result.returncode == 0:
+                    print(f"  [OK] Partition {year} creee avec succes")
+                    created_count += 1
+                else:
+                    print(f"  [WARN] Erreur creation partition {year}: {create_result.stderr[:100]}")
+            else:
+                print(f"  [OK] Partition {year} existe deja")
+                
+        except Exception as e:
+            print(f"  [ERROR] Erreur verification partition {year}: {str(e)}")
+    
+    print(f"\n[SUCCESS] {created_count} nouvelle(s) partition(s) creee(s)")
+    return created_count
+
+
+@task(name="Weekly Vacuum and Analyze", retries=1)
+def vacuum_and_analyze():
+    """Exécute VACUUM et ANALYZE sur les tables principales (maintenance légère)"""
+    print("\n" + "="*70)
+    print("[MAINTENANCE] VACUUM et ANALYZE hebdomadaire...")
+    print("="*70)
+    
+    dwh_dbname = os.getenv('DWH_DB_NAME', 'sigeti_node_db')
+    dwh_password = os.getenv('DBT_PASSWORD')
+    
+    # Tables principales à maintenir
+    tables = [
+        "dwh_facts.fait_attributions",
+        "dwh_facts.fait_factures",
+        "dwh_facts.fait_collectes",
+        "dwh_facts.fait_paiements",
+        "dwh_dim.dim_entreprises",
+        "dwh_marts.mart_kpi_operationnels",
+        "dwh_marts.mart_portefeuille_clients",
+        "dwh_marts.mart_occupation_zones",
+        "dwh_marts.mart_performance_financiere"
+    ]
+    
+    env = os.environ.copy()
+    env['PGPASSWORD'] = dwh_password
+    env['PGCLIENTENCODING'] = 'UTF8'
+    
+    for table in tables:
+        print(f"  [INFO] VACUUM ANALYZE {table}...")
+        
+        cmd = [
+            'psql',
+            '-h', 'localhost',
+            '-U', 'postgres',
+            '-d', dwh_dbname,
+            '-c', f"VACUUM ANALYZE {table};"
+        ]
+        
+        try:
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                timeout=300  # 5 minutes max par table
+            )
+            
+            if result.returncode == 0:
+                print(f"  [OK] {table} termine")
+            else:
+                print(f"  [WARN] {table} echoue: {result.stderr[:100]}")
+                
+        except subprocess.TimeoutExpired:
+            print(f"  [WARN] {table} timeout (> 5 min)")
+        except Exception as e:
+            print(f"  [ERROR] {table} erreur: {str(e)}")
+    
+    print("[SUCCESS] Maintenance hebdomadaire terminee")
+    return True
+
+
 @task(name="Create Database Indexes", retries=1)
 def create_indexes():
     """Crée les index PostgreSQL pour optimiser les performances"""
-    
-    import subprocess
     
     dwh_dbname = os.getenv('DWH_DB_NAME', 'sigeti_node_db')
     pg_user = os.getenv('DWH_DB_USER', 'postgres')
@@ -362,6 +508,17 @@ def sigeti_dwh_full_refresh():
     
     print(f"[INFO] Demarrage du Full Refresh - {datetime.now()}")
     
+    # Vérifier si c'est lundi (jour 0)
+    is_monday = datetime.now().weekday() == 0
+    
+    if is_monday:
+        print("\n" + "="*70)
+        print("📅 LUNDI - Maintenance hebdomadaire activée")
+        print("="*70)
+        print("[MAINTENANCE] 1. Creation des nouvelles partitions")
+        print("[MAINTENANCE] 2. VACUUM ANALYZE des tables principales")
+        print("="*70 + "\n")
+    
     # Étape 1: Staging
     print("[STEP 1] Construction des modeles Staging...")
     staging_result = build_staging_models()
@@ -389,6 +546,22 @@ def sigeti_dwh_full_refresh():
     # Étape 7: Documentation
     print("[STEP 7] Generation de la Documentation...")
     generate_docs()
+    
+    # MAINTENANCE HEBDOMADAIRE (le lundi uniquement)
+    if is_monday:
+        print("\n" + "="*70)
+        print("🔧 MAINTENANCE HEBDOMADAIRE")
+        print("="*70)
+        
+        # Créer les nouvelles partitions
+        create_new_partitions()
+        
+        # VACUUM et ANALYZE
+        vacuum_and_analyze()
+        
+        print("="*70)
+        print("✅ Maintenance hebdomadaire terminée")
+        print("="*70 + "\n")
     
     print(f"[SUCCESS] Full Refresh termine - {datetime.now()}")
     
