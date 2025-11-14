@@ -68,6 +68,7 @@ export const clientsAPI = {
   getSegmentation: () => api.get('/clients/segmentation/'),
   getAnalyseComportement: () => api.get('/clients/analyse_comportement/'),
   getAnalyseOccupation: () => api.get('/clients/analyse_occupation/'),
+  getClientDetails: (entrepriseId) => api.get('/clients/client_details/', { params: { entreprise_id: entrepriseId } }),
 };
 
 // Opérationnel API

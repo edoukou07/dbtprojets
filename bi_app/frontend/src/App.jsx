@@ -8,6 +8,7 @@ import Financier from './pages/Financier'
 import Occupation from './pages/Occupation'
 import OccupationZoneDetails from './pages/OccupationZoneDetails'
 import Clients from './pages/Clients'
+import ClientDetails from './pages/ClientDetails'
 import Portefeuille from './pages/Portefeuille'
 import Operationnel from './pages/Operationnel'
 
@@ -30,6 +31,7 @@ function App() {
           <Route path="occupation" element={<Occupation />} />
           <Route path="occupation/zone/:zoneName" element={<OccupationZoneDetails />} />
           <Route path="clients" element={<Clients />} />
+          <Route path="clients/:entrepriseId" element={<ClientDetails />} />
           <Route path="portefeuille" element={<Portefeuille />} />
           <Route path="operationnel" element={<Operationnel />} />
         </Route>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { 
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -8,7 +9,7 @@ import {
 import { 
   Users, DollarSign, TrendingUp, AlertTriangle, 
   Award, Target, Activity, Building2, MapPin,
-  CheckCircle, XCircle, Clock, BarChart3
+  CheckCircle, XCircle, Clock, BarChart3, ExternalLink
 } from 'lucide-react'
 import { clientsAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
@@ -90,6 +91,22 @@ export default function Portefeuille() {
 
   return (
     <div className="space-y-8">
+      {/* En-tête avec bouton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Portefeuille Clients</h2>
+          <p className="text-gray-600 mt-1">Analyse et segmentation du portefeuille</p>
+        </div>
+        <Link
+          to="/clients"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          <Users className="w-5 h-5" />
+          Liste des Clients
+          <ExternalLink className="w-4 h-4" />
+        </Link>
+      </div>
+
       {/* KPIs Principaux */}
       <section>
         <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">

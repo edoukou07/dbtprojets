@@ -546,6 +546,87 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(summary)
     
     @action(detail=False, methods=['get'])
+    def client_details(self, request):
+        """Get detailed information for a specific client"""
+        entreprise_id = request.query_params.get('entreprise_id')
+        
+        if not entreprise_id:
+            return Response({'error': 'entreprise_id parameter is required'}, status=400)
+        
+        try:
+            client = self.get_queryset().get(entreprise_id=entreprise_id)
+        except MartPortefeuilleClients.DoesNotExist:
+            return Response({'error': 'Client not found'}, status=404)
+        
+        # Calculer des métriques additionnelles
+        from decimal import Decimal
+        
+        ca_total = float(client.chiffre_affaires_total or 0)
+        ca_paye = float(client.ca_paye or 0)
+        ca_impaye = float(client.ca_impaye or 0)
+        
+        # Taux de recouvrement
+        taux_recouvrement = round((ca_paye / ca_total * 100), 2) if ca_total > 0 else 0
+        
+        # Taux d'approbation demandes
+        taux_approbation = 0
+        if client.nombre_demandes and client.nombre_demandes > 0:
+            taux_approbation = round((client.demandes_approuvees or 0) / client.nombre_demandes * 100, 2)
+        
+        # Délai moyen paiement en jours
+        delai_paiement_jours = 0
+        if client.delai_moyen_paiement:
+            delai_paiement_jours = client.delai_moyen_paiement.days
+        
+        # Superficie moyenne par lot
+        superficie_moy_lot = 0
+        if client.nombre_lots_attribues and client.nombre_lots_attribues > 0:
+            superficie_moy_lot = round(float(client.superficie_totale_attribuee or 0) / client.nombre_lots_attribues, 2)
+        
+        # Taux de factures en retard
+        taux_factures_retard = 0
+        if client.nombre_factures and client.nombre_factures > 0:
+            taux_factures_retard = round((client.nombre_factures_retard or 0) / client.nombre_factures * 100, 2)
+        
+        data = {
+            # Informations de base
+            'entreprise_id': client.entreprise_id,
+            'raison_sociale': client.raison_sociale,
+            'forme_juridique': client.forme_juridique,
+            'registre_commerce': client.registre_commerce,
+            'telephone': client.telephone,
+            'email': client.email,
+            'secteur_activite': client.secteur_activite,
+            
+            # Métriques financières
+            'nombre_factures': client.nombre_factures or 0,
+            'chiffre_affaires_total': ca_total,
+            'ca_paye': ca_paye,
+            'ca_impaye': ca_impaye,
+            'taux_recouvrement': taux_recouvrement,
+            'taux_paiement_pct': float(client.taux_paiement_pct or 0),
+            
+            # Comportement paiement
+            'delai_moyen_paiement_jours': delai_paiement_jours,
+            'nombre_factures_retard': client.nombre_factures_retard or 0,
+            'taux_factures_retard': taux_factures_retard,
+            
+            # Attributions
+            'nombre_demandes': client.nombre_demandes or 0,
+            'demandes_approuvees': client.demandes_approuvees or 0,
+            'taux_approbation': taux_approbation,
+            'superficie_totale_attribuee': float(client.superficie_totale_attribuee or 0),
+            'nombre_lots_attribues': client.nombre_lots_attribues or 0,
+            'superficie_moyenne_lot': superficie_moy_lot,
+            
+            # Segmentation
+            'segment_client': client.segment_client,
+            'niveau_risque': client.niveau_risque,
+        }
+        
+        return Response(data)
+    
+    @action(detail=False, methods=['get'])
     def segmentation(self, request):
         """Get detailed client segmentation analysis"""
         from datetime import timedelta
