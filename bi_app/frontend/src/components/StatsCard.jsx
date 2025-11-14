@@ -18,32 +18,32 @@ export default function StatsCard({
   }
 
   const trendColors = {
-    up: 'text-green-600 bg-green-50',
-    down: 'text-red-600 bg-red-50',
-    neutral: 'text-gray-600 bg-gray-50',
+    up: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30',
+    down: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30',
+    neutral: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700',
   }
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-pulse">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
-            <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
-            <div className="h-3 bg-gray-200 rounded w-20"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2"></div>
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
           </div>
-          <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+          <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow duration-200">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <h3 className="text-3xl font-bold text-gray-900 mb-2">{value}</h3>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{title}</p>
+          <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{value}</h3>
           
           <div className="flex items-center space-x-2">
             {trend && trendValue && (
@@ -52,7 +52,7 @@ export default function StatsCard({
               </span>
             )}
             {subtitle && (
-              <p className="text-sm text-gray-500">{subtitle}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
             )}
           </div>
         </div>

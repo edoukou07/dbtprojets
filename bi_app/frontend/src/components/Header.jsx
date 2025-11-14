@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import { Bell, Search, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import ThemeToggle from './ThemeToggle'
 
 export default function Header() {
   const location = useLocation()
@@ -29,14 +30,14 @@ export default function Header() {
   const currentDescription = pageDescriptions[location.pathname] || ''
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm transition-colors">
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Page Title */}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{currentTitle}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{currentTitle}</h1>
             {currentDescription && (
-              <p className="text-sm text-gray-500 mt-1">{currentDescription}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{currentDescription}</p>
             )}
           </div>
 
@@ -44,33 +45,36 @@ export default function Header() {
           <div className="flex items-center space-x-3">
             {/* Search */}
             <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Rechercher..."
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
               />
             </div>
 
             {/* Notifications */}
-            <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg relative transition-colors">
+            <button className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg relative transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
 
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Settings */}
-            <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+            <button className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <Settings className="w-5 h-5" />
             </button>
 
             {/* User Badge */}
-            <div className="ml-3 pl-3 border-l border-gray-200">
+            <div className="ml-3 pl-3 border-l border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-2">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {user?.first_name} {user?.last_name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {user?.is_staff ? 'Administrateur' : 'Utilisateur'}
                   </p>
                 </div>

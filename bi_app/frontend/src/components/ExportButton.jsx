@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Download, FileSpreadsheet, FileText, File, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 
 export default function ExportButton({ data, filename = 'export', title = 'Rapport', showPDF = true, showExcel = true, showCSV = true }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -78,7 +78,7 @@ export default function ExportButton({ data, filename = 'export', title = 'Rappo
         const headers = Object.keys(data[0])
         const rows = data.map(row => Object.values(row))
         
-        doc.autoTable({
+        autoTable(doc, {
           head: [headers],
           body: rows,
           startY: 38,

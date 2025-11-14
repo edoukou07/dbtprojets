@@ -6,6 +6,7 @@ import StatsCard from '../components/StatsCard'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useState } from 'react'
+import { CardSkeleton, TableSkeleton, HistogramSkeleton } from '../components/skeletons'
 
 export default function OccupationZoneDetails() {
   const { zoneName } = useParams()
@@ -303,10 +304,30 @@ export default function OccupationZoneDetails() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des données de la zone...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <CardSkeleton />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <HistogramSkeleton />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <TableSkeleton rows={5} columns={5} />
         </div>
       </div>
     )

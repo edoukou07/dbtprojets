@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useState, useMemo } from 'react'
 import { clientsAPI } from '../services/api'
-import { ExternalLink, TrendingUp, Users, AlertCircle, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ExternalLink, TrendingUp, Users, AlertCircle, Search, X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { CardSkeleton, TableSkeleton } from '../components/skeletons'
+import { exportClientsToExcel } from '../utils/excelExport'
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -137,48 +139,67 @@ export default function Clients() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900">Portefeuille Clients</h2>
-        <p className="text-gray-600 mt-2">Gestion et analyse du portefeuille clients</p>
+      {/* En-tête avec bouton Export */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Portefeuille Clients</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Gestion et analyse du portefeuille clients</p>
+        </div>
+        <button
+          onClick={() => exportClientsToExcel(summary, allClients)}
+          disabled={!summary || !allClients || allClients.length === 0}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:cursor-not-allowed"
+          title="Exporter vers Excel"
+        >
+          <Download className="w-5 h-5" />
+          Exporter Excel
+        </button>
       </div>
 
       {/* KPIs Summary */}
-      {summary && (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      ) : summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Clients</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{summary.total_clients || 0}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Total Clients</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{summary.total_clients || 0}</p>
               </div>
-              <Users className="w-8 h-8 text-blue-600" />
+              <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">CA Total</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.ca_total)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">CA Total</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(summary.ca_total)}</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-600" />
+              <TrendingUp className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
           </div>
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Taux Paiement Moyen</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{formatPercent(summary.taux_paiement_moyen)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Taux Paiement Moyen</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatPercent(summary.taux_paiement_moyen)}</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-purple-600" />
+              <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">CA Impayé</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">{formatCurrency(summary.ca_impaye)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">CA Impayé</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{formatCurrency(summary.ca_impaye)}</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-red-600" />
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
@@ -186,19 +207,19 @@ export default function Clients() {
 
       {/* Table des clients */}
       <div className="card">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Liste des Clients</h3>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Liste des Clients</h3>
         
         {/* Filtres */}
         <div className="mb-4 space-y-3">
           {/* Barre de recherche */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
             <input
               type="text"
               placeholder="Rechercher par raison sociale ou ID entreprise..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           
@@ -206,13 +227,13 @@ export default function Clients() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Filtre Segment */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Segment Client
               </label>
               <select
                 value={selectedSegment}
                 onChange={(e) => setSelectedSegment(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Tous les segments</option>
                 {segments.map(segment => (
@@ -223,13 +244,13 @@ export default function Clients() {
             
             {/* Filtre Niveau de Risque */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Niveau de Risque
               </label>
               <select
                 value={selectedRisque}
                 onChange={(e) => setSelectedRisque(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Tous les niveaux</option>
                 {niveauxRisque.map(niveau => (
@@ -240,7 +261,7 @@ export default function Clients() {
             
             {/* Filtre Taux Paiement Min */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Taux Paiement Min (%)
               </label>
               <input
@@ -251,13 +272,13 @@ export default function Clients() {
                 placeholder="Ex: 80"
                 value={minTauxPaiement}
                 onChange={(e) => setMinTauxPaiement(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             
             {/* Filtre Factures Retard Max */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Factures Retard Max
               </label>
               <input
@@ -267,7 +288,7 @@ export default function Clients() {
                 placeholder="Ex: 5"
                 value={maxFacturesRetard}
                 onChange={(e) => setMaxFacturesRetard(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -276,7 +297,7 @@ export default function Clients() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Filtre Demandes Min */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Nombre Demandes Min
               </label>
               <input
@@ -286,13 +307,13 @@ export default function Clients() {
                 placeholder="Ex: 1"
                 value={minDemandes}
                 onChange={(e) => setMinDemandes(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             
             {/* Filtre Lots Attribués Min */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Lots Attribués Min
               </label>
               <input
@@ -302,7 +323,7 @@ export default function Clients() {
                 placeholder="Ex: 1"
                 value={minLotsAttribues}
                 onChange={(e) => setMinLotsAttribues(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             
@@ -311,7 +332,7 @@ export default function Clients() {
               {hasActiveFilters && (
                 <button
                   onClick={resetFilters}
-                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
                 >
                   <X className="w-4 h-4" />
                   Réinitialiser les filtres
@@ -332,7 +353,7 @@ export default function Clients() {
                   setItemsPerPage(Number(e.target.value))
                   setCurrentPage(1)
                 }}
-                className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
@@ -340,19 +361,19 @@ export default function Clients() {
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
-              <span className="text-sm text-gray-600">par page</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">par page</span>
             </div>
             
-            <p className="text-lg font-semibold text-gray-900">
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">
               {filteredClients.length} {filteredClients.length > 1 ? 'entreprises trouvées' : 'entreprise trouvée'}
               {hasActiveFilters && (
-                <span className="text-sm font-normal text-gray-600 ml-2">
+                <span className="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">
                   (sur {allClients.length} au total)
                 </span>
               )}
             </p>
             
-            <div className="text-sm text-gray-600 px-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 px-4">
               {filteredClients.length > 0 && (
                 <>Affichage {startIndex + 1}-{Math.min(endIndex, filteredClients.length)} sur {filteredClients.length}</>
               )}
@@ -361,14 +382,13 @@ export default function Clients() {
         )}
 
         {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-2">Chargement...</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <TableSkeleton rows={itemsPerPage} columns={7} />
           </div>
         ) : clients && clients.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-blue-600 to-blue-700">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Client
@@ -393,39 +413,44 @@ export default function Clients() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {clients.map((client) => (
-                  <tr key={client.entreprise_id} className="hover:bg-gray-50">
+                  <tr key={client.entreprise_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{client.raison_sociale}</div>
-                      <div className="text-sm text-gray-500">ID: {client.entreprise_id}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{client.raison_sociale}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">ID: {client.entreprise_id}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {client.secteur_activite || 'Non défini'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {formatCurrency(client.chiffre_affaires_total)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`text-sm font-medium ${
-                        (client.taux_paiement_pct || 0) >= 80 ? 'text-green-600' : 
-                        (client.taux_paiement_pct || 0) >= 50 ? 'text-yellow-600' : 'text-red-600'
+                        (client.taux_paiement_pct || 0) >= 80 ? 'text-green-600 dark:text-green-400' : 
+                        (client.taux_paiement_pct || 0) >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                       }`}>
                         {formatPercent(client.taux_paiement_pct)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRisqueColor(client.niveau_risque)}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        client.niveau_risque?.toLowerCase() === 'faible' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                        client.niveau_risque?.toLowerCase() === 'moyen' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                        client.niveau_risque?.toLowerCase() === 'eleve' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                        'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                      }`}>
                         {client.niveau_risque || 'Non défini'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {client.segment_client || 'Non segmenté'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <Link
                         to={`/clients/${client.entreprise_id}`}
-                        className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 inline-flex items-center gap-1"
                       >
                         Détails
                         <ExternalLink className="w-4 h-4" />
@@ -438,7 +463,7 @@ export default function Clients() {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-gray-500">
+            <p className="text-gray-500 dark:text-gray-400">
               {hasActiveFilters 
                 ? 'Aucun client ne correspond aux filtres sélectionnés' 
                 : 'Aucun client trouvé'}
@@ -446,7 +471,7 @@ export default function Clients() {
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="mt-2 text-blue-600 hover:text-blue-800 text-sm inline-flex items-center gap-1"
+                className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm inline-flex items-center gap-1"
               >
                 <X className="w-4 h-4" />
                 Réinitialiser les filtres
@@ -457,9 +482,9 @@ export default function Clients() {
         
         {/* Pagination */}
         {!isLoading && filteredClients.length > 0 && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 sm:px-6">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
             <div className="flex justify-between items-center w-full">
-              <div className="text-sm text-gray-700">
+              <div className="text-sm text-gray-700 dark:text-gray-300">
                 Page <span className="font-medium">{currentPage}</span> sur{' '}
                 <span className="font-medium">{totalPages}</span>
               </div>
@@ -470,8 +495,8 @@ export default function Clients() {
                   disabled={currentPage === 1}
                   className={`px-3 py-1 rounded-lg flex items-center gap-1 ${
                     currentPage === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -494,15 +519,15 @@ export default function Clients() {
                           onClick={() => setCurrentPage(pageNum)}
                           className={`px-3 py-1 rounded-lg ${
                             currentPage === pageNum
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                              ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                           }`}
                         >
                           {pageNum}
                         </button>
                       )
                     } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                      return <span key={pageNum} className="px-2 py-1">...</span>
+                      return <span key={pageNum} className="px-2 py-1 text-gray-500 dark:text-gray-400">...</span>
                     }
                     return null
                   })}
@@ -513,8 +538,8 @@ export default function Clients() {
                   disabled={currentPage === totalPages}
                   className={`px-3 py-1 rounded-lg flex items-center gap-1 ${
                     currentPage === totalPages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   Suivant

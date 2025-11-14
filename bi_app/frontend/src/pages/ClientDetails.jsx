@@ -5,6 +5,7 @@ import { ArrowLeft, Download, Building2, Mail, Phone, FileText, TrendingUp, Aler
 import { useState } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { CardSkeleton, TableSkeleton } from '../components/skeletons'
 
 export default function ClientDetails() {
   const { entrepriseId } = useParams()
@@ -271,10 +272,26 @@ export default function ClientDetails() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des details du client...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <CardSkeleton />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <TableSkeleton rows={5} columns={4} />
         </div>
       </div>
     )
