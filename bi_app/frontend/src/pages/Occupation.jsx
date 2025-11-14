@@ -18,10 +18,13 @@ import {
   ChevronRight,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Map,
+  Table
 } from 'lucide-react'
 import { occupationAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
+import ZonesMap from '../components/ZonesMap'
 import { exportOccupationToExcel } from '../utils/excelExport'
 
 export default function Occupation() {
@@ -29,6 +32,7 @@ export default function Occupation() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [sortField, setSortField] = useState('nom_zone')
   const [sortDirection, setSortDirection] = useState('asc')
+  const [viewMode, setViewMode] = useState('table') // 'table' ou 'map'
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['occupation-summary'],
@@ -442,11 +446,45 @@ export default function Occupation() {
 
       {/* Tableau des Zones */}
       <section>
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-          <Hash className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" />
-          Détails par Zone
-        </h3>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+            <Hash className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" />
+            Détails par Zone
+          </h3>
+          
+          {/* Toggle Vue Carte/Tableau */}
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-1">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Table className="w-4 h-4" />
+              <span>Tableau</span>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'map'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Map className="w-4 h-4" />
+              <span>Carte</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Vue Carte */}
+        {viewMode === 'map' ? (
+          <ZonesMap height="700px" />
+        ) : (
+          /* Vue Tableau */
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           {/* Top 5 des Zones */}
           {topZones && topZones.plus_occupees && topZones.plus_occupees.length > 0 && (
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
@@ -678,7 +716,8 @@ export default function Occupation() {
               )}
             </div>
           )}
-        </div>
+          </div>
+        )}
       </section>
       
       {/* Pagination pour zones */}

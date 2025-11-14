@@ -11,6 +11,7 @@ import Clients from './pages/Clients'
 import ClientDetails from './pages/ClientDetails'
 import Portefeuille from './pages/Portefeuille'
 import Operationnel from './pages/Operationnel'
+import TestMap from './pages/TestMap'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <Routes>
         {/* Route publique */}
         <Route path="/login" element={<Login />} />
+        <Route path="/test-map" element={<TestMap />} />
         
         {/* Routes protégées */}
         <Route path="/" element={

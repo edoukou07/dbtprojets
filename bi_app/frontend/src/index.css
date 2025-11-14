@@ -30,3 +30,156 @@ body {
     @apply bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-700 p-6 rounded-lg shadow-sm border border-blue-100 dark:border-gray-600;
   }
 }
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.5rem;
+  z-index: 0;
+}
+
+/* Fix pour les icônes Leaflet */
+.leaflet-default-icon-path {
+  background-image: url(https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png);
+}
+
+/* Popups personnalisés */
+.custom-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 0;
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+.custom-popup .leaflet-popup-tip {
+  border-radius: 2px;
+}
+
+/* Tooltips */
+.leaflet-tooltip {
+  background-color: rgba(17, 24, 39, 0.95);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: rgba(17, 24, 39, 0.95);
+}
+
+/* Animation au survol des zones */
+.leaflet-interactive:hover {
+  transition: all 0.3s ease;
+  filter: brightness(1.1);
+}
+
+/* Dark mode pour la carte */
+.dark .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.dark .leaflet-popup-content-wrapper {
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.dark .leaflet-popup-tip {
+  background-color: #1f2937;
+}
+
+.dark .custom-popup .leaflet-popup-content-wrapper {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+}
+
+/* Contrôles personnalisés */
+.leaflet-control button {
+  background: white;
+  border: none;
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.dark .leaflet-control button {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.leaflet-control button:hover {
+  background: #f3f4f6;
+}
+
+.dark .leaflet-control button:hover {
+  background: #374151;
+}
+
+/* Assurer que la carte prend toute la hauteur */
+.leaflet-container .leaflet-map-pane {
+  z-index: 1;
+}
+
+/* Styles pour les clusters de marqueurs */
+.custom-cluster-icon {
+  background: transparent;
+  border: none;
+}
+
+.cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.cluster-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cluster-icon span {
+  display: block;
+  line-height: 1;
+}
+
+.cluster-small {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  font-size: 14px;
+}
+
+.cluster-medium {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  font-size: 16px;
+}
+
+.cluster-large {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  font-size: 18px;
+}
+
+.dark .cluster-icon {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+}
+
+.dark .cluster-icon:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+}
+

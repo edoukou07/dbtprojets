@@ -24,6 +24,7 @@ from .serializers import (
     AlertSerializer,
     AlertThresholdSerializer
 )
+from .cache_decorators import cache_api_response
 
 
 class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
@@ -44,6 +45,7 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ['-annee', '-mois']
     
     @action(detail=False, methods=['get'])
+    @cache_api_response('financier_summary', timeout=300)
     def summary(self, request):
         """Get financial summary statistics"""
         queryset = self.filter_queryset(self.get_queryset())
@@ -99,6 +101,7 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(summary)
     
     @action(detail=False, methods=['get'])
+    @cache_api_response('financier_by_zone', timeout=300)
     def by_zone(self, request):
         """Get data grouped by zone"""
         annee = request.query_params.get('annee')
@@ -302,6 +305,7 @@ class MartOccupationZonesViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ['-taux_occupation_pct']
     
     @action(detail=False, methods=['get'])
+    @cache_api_response('occupation_summary', timeout=300)
     def summary(self, request):
         """Get occupation summary statistics"""
         queryset = self.get_queryset()
@@ -339,6 +343,7 @@ class MartOccupationZonesViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(summary)
     
     @action(detail=False, methods=['get'])
+    @cache_api_response('occupation_by_zone', timeout=300)
     def by_zone(self, request):
         """Get detailed data by zone"""
         queryset = self.get_queryset()
@@ -469,6 +474,7 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ['-chiffre_affaires_total']
     
     @action(detail=False, methods=['get'])
+    @cache_api_response('clients_summary', timeout=300)
     def summary(self, request):
         """Get comprehensive client portfolio summary with enhanced metrics"""
         from decimal import Decimal
@@ -876,6 +882,7 @@ class MartKPIOperationnelsViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ['-annee', 'trimestre']
     
     @action(detail=False, methods=['get'])
+    @cache_api_response('operationnel_summary', timeout=300)
     def summary(self, request):
         """Get operational KPIs summary"""
         queryset = self.filter_queryset(self.get_queryset())
