@@ -3,6 +3,8 @@ URL configuration for API endpoints
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
+
 from .views import (
     MartPerformanceFinanciereViewSet,
     MartOccupationZonesViewSet,
@@ -13,6 +15,14 @@ from .views import (
     login_view,
     logout_view,
     current_user_view,
+)
+from .auth_views import (
+    CustomTokenObtainPairView,
+    login_view as jwt_login_view,
+    logout_view as jwt_logout_view,
+    register_view,
+    me_view,
+    update_profile_view,
 )
 from .logging_views import (
     api_metrics,
@@ -38,7 +48,16 @@ router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thre
 urlpatterns = [
     path('', include(router.urls)),
     
-    # Authentication endpoints
+    # JWT Authentication endpoints (NEW - SECURE)
+    path('auth/jwt/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/jwt/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/jwt/login/', jwt_login_view, name='jwt-login'),
+    path('auth/jwt/logout/', jwt_logout_view, name='jwt-logout'),
+    path('auth/jwt/register/', register_view, name='jwt-register'),
+    path('auth/jwt/me/', me_view, name='jwt-me'),
+    path('auth/jwt/profile/', update_profile_view, name='jwt-profile'),
+    
+    # Legacy Authentication endpoints (DEPRECATED - kept for backward compatibility)
     path('auth/login/', login_view, name='login'),
     path('auth/logout/', logout_view, name='logout'),
     path('auth/user/', current_user_view, name='current-user'),

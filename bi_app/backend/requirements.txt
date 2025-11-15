@@ -4,6 +4,11 @@ djangorestframework==3.14.0
 django-cors-headers==4.3.1
 psycopg2-binary==2.9.9
 python-dotenv==1.0.0
+
+# Security & Authentication
 djangorestframework-simplejwt==5.3.1
+django-ratelimit==4.1.0
+
+# Utilities
 django-filter==23.5
 pandas==2.1.4

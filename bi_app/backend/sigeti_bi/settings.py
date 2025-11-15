@@ -31,9 +31,12 @@ INSTALLED_APPS = [
     
     # Third party
     'rest_framework',
-    'rest_framework.authtoken',  # Token authentication
+    'rest_framework.authtoken',  # Token authentication (legacy)
+    'rest_framework_simplejwt',  # JWT authentication
+    'rest_framework_simplejwt.token_blacklist',  # JWT token blacklist
     'corsheaders',
     'django_filters',
+    'django_ratelimit',  # Rate limiting
     
     # Local apps
     'analytics',
@@ -111,11 +114,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT en priorité
+        'rest_framework.authentication.SessionAuthentication',  # Pour Django admin
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # Allow anonymous for development/testing
+        'rest_framework.permissions.IsAuthenticated',  # Authentification requise par défaut
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
@@ -126,6 +129,45 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # 100 requêtes/heure pour anonymes
+        'user': '1000/hour',  # 1000 requêtes/heure pour utilisateurs authentifiés
+    },
+}
+
+# JWT Configuration
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Token d'accès valide 1h
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Token de refresh valide 7 jours
+    'ROTATE_REFRESH_TOKENS': True,  # Nouveau refresh token à chaque refresh
+    'BLACKLIST_AFTER_ROTATION': True,  # Blacklist ancien token après rotation
+    'UPDATE_LAST_LOGIN': True,  # Mise à jour last_login
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': 'SIGETI-BI',
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    
+    'JTI_CLAIM': 'jti',
+    
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
 # CORS settings (Development - Allow React dev server)

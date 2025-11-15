@@ -3,13 +3,15 @@ Geographic views for zones mapping
 """
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
+from django_ratelimit.decorators import ratelimit
 from django.db import connection
 import json
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])  # Authentification requise
+@ratelimit(key='user', rate='100/m', method='GET')  # 100 requêtes/min par utilisateur
 def zones_map_data(request):
     """
     Get geographic data for all zones with occupation statistics
@@ -95,7 +97,8 @@ def zones_map_data(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])  # Authentification requise
+@ratelimit(key='user', rate='100/m', method='GET')  # 100 requêtes/min par utilisateur
 def zone_details_map(request, zone_id):
     """
     Get detailed geographic data for a specific zone including lots
