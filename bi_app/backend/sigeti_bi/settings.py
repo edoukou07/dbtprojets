@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # Local apps
     'analytics',
     'api',
+    'ai_chat',  # AI Chatbot
 ]
 
 MIDDLEWARE = [
@@ -328,3 +329,9 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# OpenAI Configuration (optionnel - pour le mode IA du chatbot)
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)
+
+# OpenAI Configuration (optionnel - pour le mode IA du chatbot)
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)

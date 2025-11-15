@@ -12,6 +12,7 @@ import ClientDetails from './pages/ClientDetails'
 import Portefeuille from './pages/Portefeuille'
 import Operationnel from './pages/Operationnel'
 import TestMap from './pages/TestMap'
+import ChatBot from './components/ChatBot'
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           <Route path="clients/:entrepriseId" element={<ClientDetails />} />
           <Route path="portefeuille" element={<Portefeuille />} />
           <Route path="operationnel" element={<Operationnel />} />
+          <Route path="chatbot" element={<ChatBot />} />
         </Route>
 
         {/* Redirection par défaut */}

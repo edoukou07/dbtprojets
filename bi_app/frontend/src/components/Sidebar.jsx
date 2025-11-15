@@ -9,7 +9,8 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  LayoutDashboard
+  LayoutDashboard,
+  Bot
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
@@ -25,6 +26,7 @@ export default function Sidebar() {
     { name: 'Occupation Zones', path: '/occupation', icon: Building2 },
     { name: 'Portefeuille Clients', path: '/portefeuille', icon: Users },
     { name: 'KPI Opérationnels', path: '/operationnel', icon: Activity },
+    { name: 'Assistant IA', path: '/chatbot', icon: Bot },
   ]
   
   const isActive = (path) => location.pathname === path
