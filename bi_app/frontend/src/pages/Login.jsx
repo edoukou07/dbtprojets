@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Building2, 
   Mail, 
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export default function Login() {
-  const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -28,27 +28,14 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Stocker le token et les informations utilisateur
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Rediriger vers le dashboard
-        navigate('/dashboard');
-      } else {
-        setError(data.error || 'Email ou mot de passe incorrect');
+      const result = await login(formData.email, formData.password);
+      
+      if (!result.success) {
+        setError(result.error || 'Email ou mot de passe incorrect');
       }
+      // Si succès, la redirection est gérée par le contexte AuthContext
     } catch (err) {
+      console.error('Login error:', err);
       setError('Erreur de connexion au serveur');
     } finally {
       setLoading(false);

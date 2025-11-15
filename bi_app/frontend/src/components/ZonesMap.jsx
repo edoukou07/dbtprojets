@@ -213,7 +213,15 @@ function ZonesMap({ height = '600px' }) {
     try {
       setLoading(true);
       console.log('🗺️ Fetching zones data...');
-      const response = await fetch('http://127.0.0.1:8000/api/zones/map/');
+      
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://127.0.0.1:8000/api/zones/map/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
       const data = await response.json();
       console.log('📡 API Response:', data);
       

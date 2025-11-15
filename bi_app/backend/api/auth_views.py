@@ -57,17 +57,34 @@ def login_view(request):
     """
     Connexion avec JWT
     Rate limited: 5 tentatives par minute par IP
+    Accepte username ou email
     """
     username = request.data.get('username')
     password = request.data.get('password')
     
+    print(f"DEBUG Login attempt - username: {username}, has_password: {bool(password)}")
+    
     if not username or not password:
+        print(f"DEBUG Missing credentials - username: {username}, password: {'***' if password else 'None'}")
         return Response(
-            {'error': 'Username et password requis'},
+            {'error': 'Username/email et password requis'},
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # Essayer d'authentifier avec le username d'abord
     user = authenticate(username=username, password=password)
+    print(f"DEBUG First auth attempt: {user}")
+    
+    # Si échec et que username contient @, essayer avec l'email
+    if user is None and '@' in username:
+        try:
+            user_obj = User.objects.get(email=username)
+            print(f"DEBUG Found user by email: {user_obj.username}")
+            user = authenticate(username=user_obj.username, password=password)
+            print(f"DEBUG Second auth attempt: {user}")
+        except User.DoesNotExist:
+            print(f"DEBUG No user found with email: {username}")
+            pass
     
     if user is None:
         return Response(

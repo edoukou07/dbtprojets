@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Vérifier si l'utilisateur est déjà connecté
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
     const storedUser = localStorage.getItem('user');
     
     if (token && storedUser) {
@@ -30,18 +30,24 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      const payload = { username: email, password };
+      console.log('Login payload:', payload);
+      
       const response = await fetch('http://localhost:8000/api/auth/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       });
 
+      console.log('Login response status:', response.status);
       const data = await response.json();
+      console.log('Login response data:', data);
 
       if (response.ok) {
-        localStorage.setItem('token', data.token);
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
         localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
         navigate('/dashboard');
@@ -50,12 +56,14 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: data.error || 'Erreur de connexion' };
       }
     } catch (error) {
+      console.error('Login error:', error);
       return { success: false, error: 'Erreur de connexion au serveur' };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     setUser(null);
     navigate('/login');

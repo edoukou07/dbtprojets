@@ -25,6 +25,7 @@ import {
 import { occupationAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
 import ZonesMap from '../components/ZonesMap'
+import RefreshViewsButton from '../components/RefreshViewsButton'
 import { exportOccupationToExcel } from '../utils/excelExport'
 
 export default function Occupation() {
@@ -161,21 +162,24 @@ export default function Occupation() {
 
   return (
     <div className="space-y-8">
-      {/* En-tête avec bouton Export */}
+      {/* En-tête avec boutons Export et Refresh */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Occupation des Zones</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Analyse de l'occupation des zones industrielles</p>
         </div>
-        <button
-          onClick={() => exportOccupationToExcel(summary, zonesData, topZones)}
-          disabled={!summary || !zonesData}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:cursor-not-allowed"
-          title="Exporter vers Excel"
-        >
-          <Download className="w-5 h-5" />
-          Exporter Excel
-        </button>
+        <div className="flex items-center gap-3">
+          <RefreshViewsButton />
+          <button
+            onClick={() => exportOccupationToExcel(summary, zonesData, topZones)}
+            disabled={!summary || !zonesData}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:cursor-not-allowed"
+            title="Exporter vers Excel"
+          >
+            <Download className="w-5 h-5" />
+            Exporter Excel
+          </button>
+        </div>
       </div>
 
       {/* KPIs Principaux */}

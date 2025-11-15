@@ -13,10 +13,10 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['alerts', showOnlyActive],
     queryFn: async () => {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('access_token')
       const endpoint = showOnlyActive ? `${API_URL}/alerts/active/` : `${API_URL}/alerts/`
       const response = await axios.get(endpoint, {
-        headers: { Authorization: `Token ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       return response.data
     },
@@ -26,11 +26,11 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
   // Acknowledge mutation
   const acknowledgeMutation = useMutation({
     mutationFn: async (alertId) => {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('access_token')
       const response = await axios.post(
         `${API_URL}/alerts/${alertId}/acknowledge/`,
         {},
-        { headers: { Authorization: `Token ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       )
       return response.data
     },
@@ -42,11 +42,11 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
   // Resolve mutation
   const resolveMutation = useMutation({
     mutationFn: async (alertId) => {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('access_token')
       const response = await axios.post(
         `${API_URL}/alerts/${alertId}/resolve/`,
         {},
-        { headers: { Authorization: `Token ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       )
       return response.data
     },

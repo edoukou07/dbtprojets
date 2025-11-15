@@ -1,11 +1,13 @@
 import { useLocation } from 'react-router-dom'
-import { Bell, Search, Settings } from 'lucide-react'
+import { Bell, Search, Settings, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import ThemeToggle from './ThemeToggle'
+import { useState } from 'react'
 
 export default function Header() {
   const location = useLocation()
   const { user } = useAuth()
+  const [refreshing, setRefreshing] = useState(false)
 
   // Mapping des routes vers les titres
   const pageTitles = {
@@ -29,6 +31,18 @@ export default function Header() {
   const currentTitle = pageTitles[location.pathname] || 'SIGETI BI'
   const currentDescription = pageDescriptions[location.pathname] || ''
 
+  const handleRefreshData = async () => {
+    setRefreshing(true)
+    try {
+      // Recharger la page actuelle
+      window.location.reload()
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement:', error)
+    } finally {
+      setTimeout(() => setRefreshing(false), 1000)
+    }
+  }
+
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm transition-colors">
       <div className="px-6 py-4">
@@ -43,6 +57,17 @@ export default function Header() {
 
           {/* Actions */}
           <div className="flex items-center space-x-3">
+            {/* Refresh Button */}
+            <button 
+              onClick={handleRefreshData}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+              title="Rafraîchir les données"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline text-sm font-medium">Rafraîchir</span>
+            </button>
+
             {/* Search */}
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />

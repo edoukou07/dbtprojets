@@ -36,6 +36,11 @@ from .geo_views import (
     zones_map_data,
     zone_details_map,
 )
+from .refresh_views import (
+    refresh_all_views,
+    refresh_specific_view,
+    get_refresh_status,
+)
 
 router = DefaultRouter()
 router.register(r'financier', MartPerformanceFinanciereViewSet, basename='financier')
@@ -73,4 +78,9 @@ urlpatterns = [
     # Geographic/Map endpoints
     path('zones/map/', zones_map_data, name='zones-map'),
     path('zones/<int:zone_id>/map/', zone_details_map, name='zone-details-map'),
+    
+    # Refresh Materialized Views endpoints
+    path('refresh/all/', refresh_all_views, name='refresh-all-views'),
+    path('refresh/<str:view_name>/', refresh_specific_view, name='refresh-specific-view'),
+    path('refresh/status/', get_refresh_status, name='refresh-status'),
 ]

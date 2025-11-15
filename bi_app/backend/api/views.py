@@ -1182,42 +1182,43 @@ import json
 @permission_classes([AllowAny])
 def login_view(request):
     """
-    Login endpoint
+    Login endpoint (Updated to support JWT and username/email)
     POST /api/auth/login/
-    Body: {"email": "user@example.com", "password": "password"}
+    Body: {"username": "user@example.com" or "username", "password": "password"}
     """
     try:
+        from rest_framework_simplejwt.tokens import RefreshToken
+        
         data = json.loads(request.body)
-        email = data.get('email')
+        username = data.get('username')  # Can be email or username
         password = data.get('password')
         
-        if not email or not password:
+        if not username or not password:
             return JsonResponse({
-                'error': 'Email et mot de passe requis'
+                'error': 'Username/email et password requis'
             }, status=400)
         
-        # Django utilise username, pas email par défaut
-        # On cherche l'utilisateur par email
-        try:
-            user = User.objects.get(email=email)
-            username = user.username
-        except User.DoesNotExist:
-            return JsonResponse({
-                'error': 'Email ou mot de passe incorrect'
-            }, status=401)
-        
-        # Authentifier avec le username
+        # Try to authenticate with username first
         user = authenticate(request, username=username, password=password)
         
-        if user is not None:
+        # If failed and username contains @, try with email
+        if user is None and '@' in username:
+            try:
+                user_obj = User.objects.get(email=username)
+                user = authenticate(request, username=user_obj.username, password=password)
+            except User.DoesNotExist:
+                pass
+        
+        if user is not None and user.is_active:
             login(request, user)
             
-            # Créer ou récupérer le token
-            token, created = Token.objects.get_or_create(user=user)
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
             
             return JsonResponse({
                 'success': True,
-                'token': token.key,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
                 'user': {
                     'id': user.id,
                     'username': user.username,
@@ -1229,7 +1230,7 @@ def login_view(request):
             })
         else:
             return JsonResponse({
-                'error': 'Email ou mot de passe incorrect'
+                'error': 'Identifiants invalides'
             }, status=401)
             
     except json.JSONDecodeError:
