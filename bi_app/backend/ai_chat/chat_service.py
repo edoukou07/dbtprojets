@@ -1,5 +1,6 @@
 """
 Service de chat IA pour exécuter les requêtes et formater les réponses
+Intègre les règles métier pour analyse intelligente et recommandations
 """
 
 from django.db import connection
@@ -7,6 +8,7 @@ from typing import Dict, List, Optional
 import logging
 from decimal import Decimal
 from datetime import datetime, date
+from .business_rules import BusinessRules
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,8 @@ class ChatService:
     
     def __init__(self, query_engine):
         self.query_engine = query_engine
+        self.conversation_context = []  # Historique pour suggestions contextuelles
+        self.business_rules = BusinessRules()  # Règles métier
     
     def execute_query(self, sql: str, max_rows: int = 100) -> Dict:
         """
@@ -73,7 +77,22 @@ class ChatService:
                 
         except Exception as e:
             logger.error(f"Erreur exécution SQL: {e}")
-            result['error'] = str(e)
+            error_msg = str(e)
+            
+            # Messages d'erreur conviviaux
+            if 'does not exist' in error_msg.lower():
+                if 'column' in error_msg.lower():
+                    result['error'] = "📊 Cette information n'est pas disponible dans les données actuelles. Essayez une autre question ou reformulez votre demande."
+                elif 'table' in error_msg.lower() or 'relation' in error_msg.lower():
+                    result['error'] = "📊 Les données demandées ne sont pas encore disponibles dans le système."
+                else:
+                    result['error'] = "📊 Information non disponible. Veuillez reformuler votre question."
+            elif 'permission denied' in error_msg.lower():
+                result['error'] = "🔒 Accès non autorisé à cette ressource."
+            elif 'syntax error' in error_msg.lower():
+                result['error'] = "❓ Je n'ai pas bien compris votre question. Pouvez-vous la reformuler différemment ?"
+            else:
+                result['error'] = "⚠️ Une erreur s'est produite. Essayez de reformuler votre question."
         
         return result
     
@@ -133,6 +152,38 @@ class ChatService:
             execution_result['columns'],
             query_result.get('category')
         )
+        
+        # Générer des suggestions contextuelles
+        response['contextual_suggestions'] = self._generate_contextual_suggestions(
+            question,
+            query_result.get('category'),
+            data,
+            row_count
+        )
+        
+        # Appliquer les règles métier pour insights et alertes
+        response['business_insights'] = self.business_rules.generate_insights(
+            data, 
+            query_result.get('category')
+        )
+        
+        # Détecter les anomalies dans les données (contextuel selon catégorie)
+        anomalies = self.business_rules.detect_anomalies(data, query_result.get('category'))
+        if anomalies:
+            response['anomalies'] = anomalies
+            critical_anomalies = [a for a in anomalies if a['severity'] == 'error']
+            if critical_anomalies:
+                logger.warning(f"⚠️ {len(critical_anomalies)} anomalies critiques détectées")
+        
+        # Mettre à jour le contexte de conversation
+        self.conversation_context.append({
+            'question': question,
+            'category': query_result.get('category'),
+            'has_data': row_count > 0
+        })
+        # Garder seulement les 5 dernières questions
+        if len(self.conversation_context) > 5:
+            self.conversation_context.pop(0)
         
         return response
     
@@ -227,6 +278,130 @@ class ChatService:
             else:
                 return f"{value:.0f}"
         return str(value)
+    
+    def _generate_contextual_suggestions(self, question: str, category: str, 
+                                         data: List[Dict], row_count: int) -> List[Dict]:
+        """Génère des suggestions contextuelles basées sur la réponse actuelle"""
+        suggestions = []
+        
+        if row_count == 0:
+            # Aucun résultat - suggérer des questions plus générales
+            if category == 'financier':
+                suggestions.append({
+                    'text': 'Quel est le CA total ?',
+                    'icon': '💰',
+                    'reason': 'Vue d\'ensemble financière'
+                })
+                suggestions.append({
+                    'text': 'Quels sont les impayés ?',
+                    'icon': '⚠️',
+                    'reason': 'Analyse des créances'
+                })
+            elif category == 'occupation':
+                suggestions.append({
+                    'text': 'Quelles sont les zones disponibles ?',
+                    'icon': '📍',
+                    'reason': 'Disponibilité des zones'
+                })
+            elif category == 'clients':
+                suggestions.append({
+                    'text': 'Top 10 clients',
+                    'icon': '👥',
+                    'reason': 'Principaux clients'
+                })
+            return suggestions
+        
+        # Suggestions basées sur la catégorie et les données
+        if category == 'financier':
+            # Si on a montré le CA total, suggérer détails
+            if row_count == 1 and any('ca_total' in str(k).lower() for row in data for k in row.keys()):
+                suggestions.append({
+                    'text': 'Répartition du CA par zone',
+                    'icon': '📊',
+                    'reason': 'Détail géographique'
+                })
+                suggestions.append({
+                    'text': 'Evolution du CA sur 6 mois',
+                    'icon': '📈',
+                    'reason': 'Tendance temporelle'
+                })
+                suggestions.append({
+                    'text': 'Taux de paiement par secteur',
+                    'icon': '💳',
+                    'reason': 'Analyse sectorielle'
+                })
+            # Si on a montré une liste de zones/clients
+            elif row_count > 1:
+                suggestions.append({
+                    'text': 'Comparer avec le mois précédent',
+                    'icon': '🔄',
+                    'reason': 'Evolution temporelle'
+                })
+                suggestions.append({
+                    'text': 'Filtrer montants > 100M',
+                    'icon': '🔍',
+                    'reason': 'Focus montants importants'
+                })
+        
+        elif category == 'occupation':
+            if row_count > 1:
+                suggestions.append({
+                    'text': 'Zones avec taux > 80%',
+                    'icon': '📈',
+                    'reason': 'Zones à forte occupation'
+                })
+                suggestions.append({
+                    'text': 'Zones avec lots disponibles',
+                    'icon': '🏗️',
+                    'reason': 'Opportunités disponibles'
+                })
+            suggestions.append({
+                'text': 'Evolution occupation sur 12 mois',
+                'icon': '📊',
+                'reason': 'Tendance annuelle'
+            })
+        
+        elif category == 'clients':
+            if row_count > 1:
+                # On a une liste de clients
+                suggestions.append({
+                    'text': 'Clients par secteur d\'activité',
+                    'icon': '🏢',
+                    'reason': 'Segmentation sectorielle'
+                })
+                suggestions.append({
+                    'text': 'Clients avec CA > 50M',
+                    'icon': '💎',
+                    'reason': 'Clients premium'
+                })
+            suggestions.append({
+                'text': 'Nouveaux clients ce mois',
+                'icon': '🆕',
+                'reason': 'Acquisition récente'
+            })
+        
+        # Suggestions cross-catégorie basées sur l'historique
+        if len(self.conversation_context) >= 2:
+            prev_categories = [ctx.get('category') for ctx in self.conversation_context[-2:]]
+            
+            # Si on parle de finances, suggérer occupation
+            if 'financier' in prev_categories and category == 'financier':
+                suggestions.append({
+                    'text': 'Occupation des zones',
+                    'icon': '🏗️',
+                    'reason': 'Vue opérationnelle'
+                })
+            
+            # Si on parle d'occupation, suggérer finances
+            elif 'occupation' in prev_categories and category == 'occupation':
+                suggestions.append({
+                    'text': 'CA par zone',
+                    'icon': '💰',
+                    'reason': 'Performance financière'
+                })
+        
+        # Limiter à 4 suggestions
+        return suggestions[:4]
     
     def _suggest_visualization(self, data: List[Dict], columns: List[str], 
                                category: str) -> Optional[Dict]:

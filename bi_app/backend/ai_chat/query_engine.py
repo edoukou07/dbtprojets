@@ -1,7 +1,7 @@
 """
 Moteur de requêtes intelligent pour le chatbot BI
 Supporte deux modes:
-1. Mode RULE-BASED (gratuit) : Templates SQL prédéfinis
+1. Mode RULE-BASED (gratuit) : Templates SQL prédéfinis avec règles métier
 2. Mode AI (OpenAI) : Text-to-SQL avec GPT-4
 
 Base de données: sigeti_node_db
@@ -10,6 +10,12 @@ Schémas datamarts:
 - dwh_marts_occupation.mart_occupation_zones
 - dwh_marts_clients.mart_portefeuille_clients
 - dwh_marts_operationnel.mart_kpi_operationnels
+
+Règles métier intégrées:
+- Seuils d'alerte (impayés > 30%, occupation < 50%)
+- Validations temporelles (années valides, périodes cohérentes)
+- Agrégations intelligentes (TOP N, filtres dynamiques)
+- Détection d'anomalies (valeurs nulles, données manquantes)
 """
 
 import re

@@ -26,6 +26,22 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Intercepteur pour gérer les erreurs 401 (non authentifié)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn('⚠️ Non authentifié - Redirection vers /login recommandée');
+      // En mode dev, afficher un message plutôt que crasher
+      if (window.location.pathname === '/chatbot') {
+        alert('Vous devez vous connecter pour utiliser le chatbot.\nRedirection vers la page de connexion...');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 const ChatBot = () => {
   const [activeTab, setActiveTab] = useState('chat');
   const [messages, setMessages] = useState([]);
@@ -39,9 +55,17 @@ const ChatBot = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRules, setExpandedRules] = useState(new Set());
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Supposer authentifié par défaut
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
+    // Vérifier l'authentification au chargement
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setIsAuthenticated(false);
+      console.warn('⚠️ Aucun token trouvé - Veuillez vous connecter');
+    }
+    
     loadSuggestions();
     loadCapabilities();
     loadRules();
@@ -164,12 +188,18 @@ const ChatBot = () => {
       console.log('📊 Response data:', response.data);
       console.log('📊 Visualization config:', response.data.visualization);
       console.log('📊 Data:', response.data.data);
+      console.log('💡 Contextual suggestions:', response.data.contextual_suggestions);
+      console.log('🎯 Business insights:', response.data.business_insights);
+      console.log('⚠️ Anomalies:', response.data.anomalies);
       
       const botMessage = {
         type: 'bot',
         content: response.data.answer,
         data: response.data.data,
         visualization: response.data.visualization,
+        contextual_suggestions: response.data.contextual_suggestions || [],
+        business_insights: response.data.business_insights || [],
+        anomalies: response.data.anomalies || [],
         sql: response.data.sql,
         engine: response.data.engine,
         timestamp: new Date()
@@ -434,6 +464,16 @@ const ChatBot = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      {/* Avertissement si non authentifié */}
+      {!isAuthenticated && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-6 py-3">
+          <div className="flex items-center text-sm text-yellow-800">
+            <span className="mr-2">⚠️</span>
+            <span>Vous n'êtes pas connecté. Veuillez vous <a href="/login" className="underline font-semibold">connecter</a> pour utiliser toutes les fonctionnalités du chatbot.</span>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between mb-4">
@@ -524,6 +564,47 @@ const ChatBot = () => {
                   : 'bg-white border shadow-sm'
               }`}>
                 <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                
+                {/* Business Insights */}
+                {msg.business_insights && msg.business_insights.length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="text-xs font-semibold text-blue-800 mb-2 flex items-center">
+                      <Lightbulb className="w-3 h-3 mr-1" />
+                      Analyse métier
+                    </div>
+                    <ul className="text-xs text-blue-900 space-y-1">
+                      {msg.business_insights.map((insight, i) => (
+                        <li key={i} className="flex items-start">
+                          <span className="mr-2">•</span>
+                          <span>{insight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {/* Anomalies detectées */}
+                {msg.anomalies && msg.anomalies.length > 0 && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="text-xs font-semibold text-yellow-800 mb-2 flex items-center">
+                      ⚠️ Anomalies détectées ({msg.anomalies.length})
+                    </div>
+                    <ul className="text-xs text-yellow-900 space-y-1">
+                      {msg.anomalies.slice(0, 3).map((anomaly, i) => (
+                        <li key={i} className="flex items-start">
+                          <span className="mr-2">{anomaly.severity === 'error' ? '🔴' : '⚠️'}</span>
+                          <span>{anomaly.message}</span>
+                        </li>
+                      ))}
+                      {msg.anomalies.length > 3 && (
+                        <li className="text-yellow-700 italic">
+                          + {msg.anomalies.length - 3} autre(s) anomalie(s)
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+                
                 {msg.engine && (
                   <div className="text-xs mt-2 opacity-70">
                     Moteur: {msg.engine === 'rule-based' ? 'Règles' : 'IA'}
@@ -553,7 +634,35 @@ const ChatBot = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggestions */}
+      {/* Suggestions contextuelles */}
+      {messages.length > 1 && messages[messages.length - 1]?.contextual_suggestions?.length > 0 && (
+        <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-t border-blue-200">
+          <div className="flex items-center text-sm font-medium text-gray-700 mb-2">
+            <Lightbulb className="w-4 h-4 mr-2 text-yellow-500" />
+            Questions suggérées pour approfondir:
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {messages[messages.length - 1].contextual_suggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setInput(suggestion.text);
+                  setTimeout(() => handleSendMessage(suggestion.text), 100);
+                }}
+                className="flex items-start p-3 text-left bg-white hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-all shadow-sm hover:shadow"
+              >
+                <span className="text-2xl mr-3 flex-shrink-0">{suggestion.icon}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">{suggestion.text}</div>
+                  <div className="text-xs text-gray-500 mt-1">{suggestion.reason}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Suggestions initiales */}
       {suggestions.length > 0 && messages.length <= 1 && (
         <div className="px-6 py-3 bg-white border-t">
           <div className="flex items-center text-sm text-gray-600 mb-2">
