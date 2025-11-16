@@ -498,6 +498,66 @@ class RuleBasedQueryEngine:
                 category="general"
             ),
             
+            # === TENDANCES & ÉVOLUTIONS ===
+            QueryPattern(
+                patterns=[
+                    "tendance", "évolution", "progression", "croissance",
+                    "tendance ca", "évolution ca", "progression ca",
+                    "tendance occupation", "évolution occupation"
+                ],
+                sql_template="""
+                    SELECT mois, 
+                           SUM(montant_total_facture) as ca_total,
+                           SUM(montant_paye) as ca_paye,
+                           AVG(taux_paiement_pct) as taux_paiement
+                    FROM dwh_marts_financier.mart_performance_financiere
+                    WHERE annee = {annee}
+                    GROUP BY mois
+                    ORDER BY mois
+                """,
+                description="Analyse de tendance mensuelle du CA",
+                params_extractor=self._extract_year,
+                category="financier"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "comparer", "comparaison", "vs", "versus",
+                    "comparer avec", "différence entre"
+                ],
+                sql_template="""
+                    SELECT annee, 
+                           SUM(montant_total_facture) as ca_total,
+                           SUM(montant_paye) as ca_paye,
+                           SUM(montant_impaye) as ca_impaye,
+                           AVG(taux_paiement_pct) as taux_paiement
+                    FROM dwh_marts_financier.mart_performance_financiere
+                    GROUP BY annee
+                    ORDER BY annee
+                """,
+                description="Comparaison annuelle du CA",
+                category="financier"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "évolution par zone", "tendance zones", "progression zones",
+                    "zones en croissance", "zones en baisse"
+                ],
+                sql_template="""
+                    SELECT nom_zone, mois,
+                           SUM(montant_total_facture) as ca_total,
+                           AVG(taux_paiement_pct) as taux_paiement
+                    FROM dwh_marts_financier.mart_performance_financiere
+                    WHERE annee = {annee}
+                    GROUP BY nom_zone, mois
+                    ORDER BY nom_zone, mois
+                """,
+                description="Évolution mensuelle du CA par zone",
+                params_extractor=self._extract_year,
+                category="financier"
+            ),
+            
             # === PATTERNS AVEC COMPARAISONS ===
             QueryPattern(
                 patterns=["zones avec occupation >", "zones occupation supérieur", "zones dépassant"],

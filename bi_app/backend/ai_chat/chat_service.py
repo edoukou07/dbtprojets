@@ -9,6 +9,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, date
 from .business_rules import BusinessRules
+from .trend_analysis import TrendAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class ChatService:
         self.query_engine = query_engine
         self.conversation_context = []  # Historique pour suggestions contextuelles
         self.business_rules = BusinessRules()  # Règles métier
+        self.trend_analyzer = TrendAnalyzer()  # Analyse de tendances
     
     def execute_query(self, sql: str, max_rows: int = 100) -> Dict:
         """
@@ -152,6 +154,15 @@ class ChatService:
             execution_result['columns'],
             query_result.get('category')
         )
+        
+        # Analyse de tendances automatique si données temporelles
+        trend_analysis = self._analyze_trends_if_temporal(
+            data,
+            execution_result['columns'],
+            query_result.get('category')
+        )
+        if trend_analysis and 'error' not in trend_analysis:
+            response['trend_analysis'] = trend_analysis
         
         # Générer des suggestions contextuelles
         response['contextual_suggestions'] = self._generate_contextual_suggestions(
@@ -548,6 +559,92 @@ class ChatService:
                     return viz
         
         return None
+    
+    def _analyze_trends_if_temporal(self, data: List[Dict], 
+                                    columns: List[str], 
+                                    category: str) -> Optional[Dict]:
+        """
+        Détecte automatiquement les données temporelles et analyse les tendances
+        
+        Args:
+            data: Données de la requête
+            columns: Noms des colonnes
+            category: Catégorie de la requête
+            
+        Returns:
+            Analyse de tendance si données temporelles, None sinon
+        """
+        if not data or len(data) < 2:
+            return None
+        
+        # Détecter les champs temporels
+        time_fields = ['mois', 'annee', 'date', 'trimestre', 'semaine', 'periode']
+        time_field = None
+        for field in time_fields:
+            if field in columns:
+                time_field = field
+                break
+        
+        if not time_field:
+            return None
+        
+        logger.info(f"[TREND] Champ temporel détecté: {time_field}")
+        
+        # Détecter les champs de valeur numériques
+        numeric_fields = []
+        for col in columns:
+            if col == time_field:
+                continue
+            # Vérifier si la colonne contient des valeurs numériques
+            first_val = data[0].get(col)
+            if isinstance(first_val, (int, float)):
+                numeric_fields.append(col)
+        
+        if not numeric_fields:
+            return None
+        
+        logger.info(f"[TREND] Champs numériques: {numeric_fields}")
+        
+        # Analyser le premier champ numérique (généralement le plus pertinent)
+        value_field = numeric_fields[0]
+        
+        # Détecter s'il y a un champ d'entité (zone, client, etc.)
+        entity_fields = ['nom_zone', 'raison_sociale', 'secteur_activite', 'zone', 'client']
+        entity_field = None
+        for field in entity_fields:
+            if field in columns:
+                entity_field = field
+                break
+        
+        try:
+            if entity_field and len(set(row.get(entity_field) for row in data)) > 1:
+                # Analyse groupée par entité
+                logger.info(f"[TREND] Analyse groupée par {entity_field}")
+                trend_result = self.trend_analyzer.analyze_time_series(
+                    data, 
+                    time_field, 
+                    value_field,
+                    entity_field
+                )
+            else:
+                # Analyse simple
+                logger.info(f"[TREND] Analyse simple de {value_field} par {time_field}")
+                trend_result = self.trend_analyzer.analyze_time_series(
+                    data, 
+                    time_field, 
+                    value_field
+                )
+            
+            if 'error' in trend_result:
+                logger.warning(f"[TREND] Erreur: {trend_result['error']}")
+                return None
+            
+            logger.info(f"[TREND] Analyse réussie: {trend_result.get('tendance')}")
+            return trend_result
+            
+        except Exception as e:
+            logger.error(f"[TREND] Erreur analyse tendance: {e}")
+            return None
     
     def process_chat_message(self, question: str, prefer_ai: bool = False) -> Dict:
         """

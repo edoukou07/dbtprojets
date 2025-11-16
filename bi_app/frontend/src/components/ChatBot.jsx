@@ -583,6 +583,141 @@ const ChatBot = () => {
                   </div>
                 )}
                 
+                {/* Analyse de Tendances */}
+                {msg.trend_analysis && (
+                  <div className="mt-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                    <div className="text-xs font-semibold text-purple-800 mb-3 flex items-center">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Analyse de Tendance
+                    </div>
+                    
+                    {/* Tendance unique */}
+                    {msg.trend_analysis.tendance && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-700">Tendance:</span>
+                          <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                            msg.trend_analysis.tendance === 'forte_hausse' ? 'bg-green-100 text-green-800' :
+                            msg.trend_analysis.tendance === 'hausse' ? 'bg-green-50 text-green-700' :
+                            msg.trend_analysis.tendance === 'stable' ? 'bg-gray-100 text-gray-700' :
+                            msg.trend_analysis.tendance === 'baisse' ? 'bg-orange-50 text-orange-700' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {msg.trend_analysis.tendance.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white p-2 rounded">
+                            <div className="text-gray-600">Variation totale</div>
+                            <div className={`font-semibold ${
+                              msg.trend_analysis.variation_totale_pct > 0 ? 'text-green-600' : 
+                              msg.trend_analysis.variation_totale_pct < 0 ? 'text-red-600' : 'text-gray-600'
+                            }`}>
+                              {msg.trend_analysis.variation_totale_pct > 0 ? '+' : ''}
+                              {msg.trend_analysis.variation_totale_pct}%
+                            </div>
+                          </div>
+                          <div className="bg-white p-2 rounded">
+                            <div className="text-gray-600">Variation moyenne</div>
+                            <div className={`font-semibold ${
+                              msg.trend_analysis.variation_moyenne_pct > 0 ? 'text-green-600' : 
+                              msg.trend_analysis.variation_moyenne_pct < 0 ? 'text-red-600' : 'text-gray-600'
+                            }`}>
+                              {msg.trend_analysis.variation_moyenne_pct > 0 ? '+' : ''}
+                              {msg.trend_analysis.variation_moyenne_pct}%
+                            </div>
+                          </div>
+                          <div className="bg-white p-2 rounded">
+                            <div className="text-gray-600">Prévision</div>
+                            <div className="font-semibold text-blue-600">
+                              {msg.trend_analysis.prevision_prochaine_periode?.toFixed(2) || 'N/A'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-2 rounded">
+                            <div className="text-gray-600">Volatilité</div>
+                            <div className={`font-semibold ${
+                              msg.trend_analysis.volatilite === 'élevée' ? 'text-orange-600' :
+                              msg.trend_analysis.volatilite === 'modérée' ? 'text-yellow-600' :
+                              'text-green-600'
+                            }`}>
+                              {msg.trend_analysis.volatilite}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Insights de tendance */}
+                        {msg.trend_analysis.insights && msg.trend_analysis.insights.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-purple-200">
+                            <div className="text-xs font-medium text-purple-700 mb-1">💡 Insights:</div>
+                            <ul className="text-xs text-purple-900 space-y-1">
+                              {msg.trend_analysis.insights.map((insight, i) => (
+                                <li key={i} className="flex items-start">
+                                  <span className="mr-1">•</span>
+                                  <span>{insight}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Saisonnalité */}
+                        {msg.trend_analysis.saisonnalite?.detectee && (
+                          <div className="mt-2 p-2 bg-purple-100 rounded text-xs">
+                            <span className="font-medium">📅 Saisonnalité détectée:</span>
+                            <span className="ml-2">Pic au mois {msg.trend_analysis.saisonnalite.mois_fort}, creux au mois {msg.trend_analysis.saisonnalite.mois_faible}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Tendances groupées (par zone, client, etc.) */}
+                    {msg.trend_analysis.top_5_hausse && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-purple-700">📈 Top 5 en hausse:</div>
+                        <div className="space-y-1">
+                          {msg.trend_analysis.top_5_hausse.map((item, i) => (
+                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-2 rounded">
+                              <span className="font-medium">{item.entite}</span>
+                              <span className="text-green-700 font-semibold">
+                                +{item.variation_pct}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {msg.trend_analysis.top_5_baisse && (
+                          <>
+                            <div className="text-xs font-medium text-purple-700 mt-3">📉 Top 5 en baisse:</div>
+                            <div className="space-y-1">
+                              {msg.trend_analysis.top_5_baisse.map((item, i) => (
+                                <div key={i} className="flex justify-between items-center text-xs bg-red-50 p-2 rounded">
+                                  <span className="font-medium">{item.entite}</span>
+                                  <span className="text-red-700 font-semibold">
+                                    {item.variation_pct}%
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                        
+                        {/* Insights comparatifs */}
+                        {msg.trend_analysis.insights && msg.trend_analysis.insights.length > 0 && (
+                          <div className="mt-3 pt-2 border-t border-purple-200">
+                            <div className="text-xs font-medium text-purple-700 mb-1">💡 Insights:</div>
+                            <ul className="text-xs text-purple-900 space-y-1">
+                              {msg.trend_analysis.insights.map((insight, i) => (
+                                <li key={i}>{insight}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 {/* Anomalies detectées */}
                 {msg.anomalies && msg.anomalies.length > 0 && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
