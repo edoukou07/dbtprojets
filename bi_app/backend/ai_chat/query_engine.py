@@ -558,6 +558,138 @@ class RuleBasedQueryEngine:
                 category="financier"
             ),
             
+            # === ALERTES INTELLIGENTES ===
+            QueryPattern(
+                patterns=[
+                    "problèmes", "alertes", "zones à risque", "zones en difficulté",
+                    "quelles zones ont des problèmes", "zones problématiques",
+                    "points d'attention", "situations critiques", "zones en alerte"
+                ],
+                sql_template="""
+                    SELECT nom_zone,
+                           taux_occupation_pct,
+                           lots_disponibles,
+                           nombre_total_lots,
+                           demandes_en_attente,
+                           taux_approbation_pct
+                    FROM dwh_marts_occupation.mart_occupation_zones
+                    ORDER BY taux_occupation_pct ASC
+                """,
+                description="Analyse des zones avec problèmes potentiels",
+                category="alertes"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "problèmes financiers", "alertes financières", "zones impayés",
+                    "problèmes de paiement", "créances problématiques"
+                ],
+                sql_template="""
+                    SELECT nom_zone,
+                           SUM(montant_total_facture) as ca_total,
+                           SUM(montant_paye) as ca_paye,
+                           SUM(montant_impaye) as ca_impaye,
+                           AVG(taux_paiement_pct) as taux_paiement,
+                           AVG(taux_impaye_pct) as taux_impaye_pct
+                    FROM dwh_marts_financier.mart_performance_financiere
+                    WHERE annee = {annee}
+                    GROUP BY nom_zone
+                    HAVING AVG(taux_paiement_pct) < 70
+                    ORDER BY AVG(taux_paiement_pct) ASC
+                """,
+                description="Zones avec problèmes financiers",
+                params_extractor=self._extract_year,
+                category="alertes"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "clients à risque", "clients problématiques", "mauvais payeurs",
+                    "clients en difficulté", "clients critiques"
+                ],
+                sql_template="""
+                    SELECT raison_sociale,
+                           niveau_risque,
+                           taux_paiement_pct,
+                           ca_impaye,
+                           nombre_factures_retard,
+                           secteur_activite
+                    FROM dwh_marts_clients.mart_portefeuille_clients
+                    WHERE niveau_risque IN ('Élevé', 'Critique')
+                       OR taux_paiement_pct < 60
+                    ORDER BY ca_impaye DESC NULLS LAST
+                    LIMIT 20
+                """,
+                description="Clients à risque avec problèmes de paiement",
+                category="alertes"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "impayés critiques", "zones impayés", "mauvais payeurs zones",
+                    "créances problématiques", "recouvrement difficile"
+                ],
+                sql_template="""
+                    SELECT nom_zone,
+                           SUM(montant_total_facture) as ca_total,
+                           SUM(montant_paye) as ca_paye,
+                           SUM(montant_impaye) as ca_impaye,
+                           AVG(taux_paiement_pct) as taux_paiement,
+                           100 - AVG(taux_paiement_pct) as taux_impaye_pct
+                    FROM dwh_marts_financier.mart_performance_financiere
+                    WHERE annee = {annee}
+                    GROUP BY nom_zone
+                    HAVING AVG(taux_paiement_pct) < 70
+                    ORDER BY taux_paiement ASC
+                """,
+                description="Zones avec impayés critiques",
+                params_extractor=self._extract_year,
+                category="financier"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "clients à risque", "clients problématiques", "mauvais payeurs",
+                    "clients dangereux", "risque client"
+                ],
+                sql_template="""
+                    SELECT raison_sociale,
+                           secteur_activite,
+                           chiffre_affaires_total,
+                           ca_impaye,
+                           nombre_factures_retard,
+                           taux_paiement_pct,
+                           niveau_risque
+                    FROM dwh_marts_clients.mart_portefeuille_clients
+                    WHERE niveau_risque IN ('Élevé', 'Critique')
+                       OR taux_paiement_pct < 60
+                       OR nombre_factures_retard > 5
+                    ORDER BY ca_impaye DESC NULLS LAST
+                    LIMIT 20
+                """,
+                description="Clients à risque élevé",
+                category="clients"
+            ),
+            
+            QueryPattern(
+                patterns=[
+                    "collectes en retard", "collectes non clôturées", "problèmes collectes",
+                    "collectes ouvertes", "retard collectes"
+                ],
+                sql_template="""
+                    SELECT annee, nom_mois,
+                           nombre_collectes,
+                           collectes_cloturees,
+                           collectes_ouvertes,
+                           taux_cloture_pct
+                    FROM dwh_marts_operationnel.mart_kpi_operationnels
+                    WHERE collectes_ouvertes > 0
+                    ORDER BY collectes_ouvertes DESC, annee DESC
+                """,
+                description="Collectes en retard ou non clôturées",
+                category="operationnel"
+            ),
+            
             # === PATTERNS AVEC COMPARAISONS ===
             QueryPattern(
                 patterns=["zones avec occupation >", "zones occupation supérieur", "zones dépassant"],
