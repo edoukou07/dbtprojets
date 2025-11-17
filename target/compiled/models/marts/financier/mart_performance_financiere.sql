@@ -1,38 +1,29 @@
-{{
-    config(
-        materialized='table',
-        indexes=[
-            {'columns': ['annee']},
-            {'columns': ['annee', 'mois']},
-            {'columns': ['nom_zone']}
-        ]
-    )
-}}
+
 
 -- Financial Performance Mart
 
 with factures as (
-    select * from {{ ref('fait_factures') }}
+    select * from "sigeti_node_db"."dwh_facts"."fait_factures"
 ),
 
 paiements as (
-    select * from {{ ref('fait_paiements') }}
+    select * from "sigeti_node_db"."dwh_facts"."fait_paiements"
 ),
 
 collectes as (
-    select * from {{ ref('fait_collectes') }}
+    select * from "sigeti_node_db"."dwh_facts"."fait_collectes"
 ),
 
 entreprises as (
-    select * from {{ ref('dim_entreprises') }}
+    select * from "sigeti_node_db"."dwh_dimensions"."dim_entreprises"
 ),
 
 zones as (
-    select * from {{ ref('dim_zones_industrielles') }}
+    select * from "sigeti_node_db"."dwh_dimensions"."dim_zones_industrielles"
 ),
 
 temps as (
-    select * from {{ ref('dim_temps') }}
+    select * from "sigeti_node_db"."dwh_dimensions"."dim_temps"
 ),
 
 factures_aggregees as (

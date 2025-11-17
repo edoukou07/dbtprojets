@@ -9,64 +9,73 @@ models:
     tests:
       # Vérifier que les données sont récentes (moins de 30 jours)
       - dbt_utils.recency:
-          datepart: day
-          field: date_modification
-          interval: 30
+          arguments:
+            datepart: day
+            field: date_modification
+            interval: 30
     columns:
       - name: montant_attribution
         description: "Montant total de l'investissement"
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 100000000000  # 100 milliards FCFA max
+              arguments:
+                min_value: 0
+                max_value: 100000000000  # 100 milliards FCFA max
           # - not_null  # Désactivé temporairement - 12 valeurs NULL à corriger dans la source
       
       - name: superficie_demandee
         description: "Superficie demandée en m² (max 50,000 m² = 5 hectares)"
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 50000  # 50,000 m² = 5 hectares pour grands projets industriels
+              arguments:
+                min_value: 0
+                max_value: 50000  # 50,000 m² = 5 hectares pour grands projets industriels
 
   - name: fait_factures
     columns:
       - name: montant_total
         tests:
           - dbt_utils.not_null_proportion:
-              at_least: 0.95  # Au moins 95% de valeurs non-nulles
+              arguments:
+                at_least: 0.95  # Au moins 95% de valeurs non-nulles
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 10000000000  # 10 milliards FCFA max
+              arguments:
+                min_value: 0
+                max_value: 10000000000  # 10 milliards FCFA max
 
   - name: fait_paiements
     columns:
       - name: montant_paiement
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
           - not_null
       
       - name: date_paiement_key
         tests:
           - not_null
           - relationships:
-              to: ref('dim_temps')
-              field: date_key
+              arguments:
+                to: ref('dim_temps')
+                field: date_key
 
   - name: fait_collectes
     columns:
       - name: montant_a_recouvrer
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
 
   # ===== DIMENSIONS =====
   - name: dim_entreprises
     tests:
       # Vérifier que chaque combinaison est unique
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - entreprise_key
+          arguments:
+            combination_of_columns:
+              - entreprise_key
     columns:
       - name: entreprise_key
         tests:
@@ -87,8 +96,9 @@ models:
       - name: superficie
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1000000  # 100 hectares max
+              arguments:
+                min_value: 0
+                max_value: 1000000  # 100 hectares max
 
   - name: dim_zones_industrielles
     columns:
@@ -107,8 +117,9 @@ models:
       - name: annee
         tests:
           - dbt_utils.accepted_range:
-              min_value: 2020
-              max_value: 2030
+              arguments:
+                min_value: 2020
+                max_value: 2030
 
   - name: dim_domaines_activites
     columns:

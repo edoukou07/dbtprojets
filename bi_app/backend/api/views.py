@@ -98,7 +98,7 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
             taux_paiement_moyen=Avg('taux_paiement_pct'),
             # delai_moyen_paiement handled below
             total_collectes=Sum('nombre_collectes'),
-            montant_recouvre=Sum('montant_total_recouvre'),
+            montant_recouvre=Sum('montant_paye'),  # FIX: Use montant_paye instead of buggy montant_total_recouvre
         )
         # Try to get average of delai_moyen_paiement separately and normalize to days.
         avg_delai = None
