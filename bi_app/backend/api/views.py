@@ -95,7 +95,6 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
-            taux_paiement_moyen=Avg('taux_paiement_pct'),
             # delai_moyen_paiement handled below
             total_collectes=Sum('nombre_collectes'),
             montant_recouvre=Sum('montant_paye'),  # FIX: Use montant_paye instead of buggy montant_total_recouvre
@@ -143,10 +142,13 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
                 summary['delai_moyen_paiement'] = 0
         
         # Calculs additionnels
+        # Recalculer le taux de paiement global correctement (pas une moyenne de moyennes)
         if summary['ca_total']:
+            summary['taux_paiement_moyen'] = (summary['ca_paye'] or 0) / summary['ca_total'] * 100
             summary['taux_impaye_pct'] = (summary['ca_impaye'] or 0) / summary['ca_total'] * 100
             summary['taux_recouvrement_pct'] = (summary['montant_recouvre'] or 0) / summary['ca_impaye'] * 100 if summary['ca_impaye'] else 0
         else:
+            summary['taux_paiement_moyen'] = 0
             summary['taux_impaye_pct'] = 0
             summary['taux_recouvrement_pct'] = 0
         
@@ -166,11 +168,19 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
             total_facture=Sum('montant_total_facture'),
             total_paye=Sum('montant_paye'),
             total_impaye=Sum('montant_impaye'),
-            taux_paiement=Avg('taux_paiement_pct'),
             nombre_factures=Sum('nombre_factures'),
         ).order_by('-total_facture')
         
-        return Response(data)
+        # Recalculer le taux de paiement correctement pour chaque zone
+        result = []
+        for item in data:
+            if item['total_facture']:
+                item['taux_paiement'] = round((item['total_paye'] or 0) / item['total_facture'] * 100, 2)
+            else:
+                item['taux_paiement'] = 0
+            result.append(item)
+        
+        return Response(result)
     
     @action(detail=False, methods=['get'])
     def tendances_mensuelles(self, request):
@@ -184,7 +194,6 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
             nombre_factures=Sum('nombre_factures'),
-            taux_paiement=Avg('taux_paiement_pct'),
         ).order_by('mois')
         
         # Ajouter les noms de mois
@@ -197,6 +206,11 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         result = []
         for item in tendances:
             item['nom_mois'] = mois_names.get(item['mois'], f"Mois {item['mois']}")
+            # Recalculer le taux de paiement correctement
+            if item['ca_facture']:
+                item['taux_paiement'] = round((item['ca_paye'] or 0) / item['ca_facture'] * 100, 2)
+            else:
+                item['taux_paiement'] = 0
             result.append(item)
         
         return Response(result)
@@ -212,12 +226,16 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
             ca_facture=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
-            taux_paiement=Avg('taux_paiement_pct'),
         ).order_by('trimestre')
         
         result = []
         for item in tendances:
             item['nom_trimestre'] = f"T{item['trimestre']}"
+            # Recalculer le taux de paiement correctement
+            if item['ca_facture']:
+                item['taux_paiement'] = round((item['ca_paye'] or 0) / item['ca_facture'] * 100, 2)
+            else:
+                item['taux_paiement'] = 0
             result.append(item)
         
         return Response(result)
