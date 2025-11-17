@@ -231,22 +231,6 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Comptes de test */}
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-sm font-medium text-blue-900 mb-2">🔐 Comptes de démonstration :</p>
-            <div className="space-y-2 text-sm text-blue-700">
-              <div>
-                <span className="font-medium">Admin:</span> admin@sigeti.ci / admin123
-              </div>
-              <div>
-                <span className="font-medium">Finance:</span> finance@sigeti.ci / finance123
-              </div>
-              <div>
-                <span className="font-medium">Opérations:</span> ops@sigeti.ci / ops123
-              </div>
-            </div>
-          </div>
-
           {/* Liens */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">

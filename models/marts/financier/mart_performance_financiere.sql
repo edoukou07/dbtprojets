@@ -4,116 +4,87 @@
         indexes=[
             {'columns': ['annee']},
             {'columns': ['annee', 'mois']},
-            {'columns': ['nom_zone']}
+            {'columns': ['annee', 'trimestre']}
         ]
     )
 }}
 
--- Financial Performance Mart
+-- Financial Performance Mart - Corrected Logic
 
 with factures as (
-    select * from {{ ref('fait_factures') }}
-),
-
-paiements as (
-    select * from {{ ref('fait_paiements') }}
+    select
+        f.facture_id,
+        f.montant_total,
+        f.est_paye,
+        f.delai_paiement_jours,
+        f.date_creation,
+        extract(year from f.date_creation)::int as annee,
+        extract(month from f.date_creation)::int as mois,
+        extract(quarter from f.date_creation)::int as trimestre
+    from {{ ref('fait_factures') }} f
 ),
 
 collectes as (
-    select * from {{ ref('fait_collectes') }}
-),
-
-entreprises as (
-    select * from {{ ref('dim_entreprises') }}
-),
-
-zones as (
-    select * from {{ ref('dim_zones_industrielles') }}
-),
-
-temps as (
-    select * from {{ ref('dim_temps') }}
+    select
+        c.collecte_id,
+        c.montant_a_recouvrer,
+        c.montant_recouvre,
+        c.taux_recouvrement,
+        c.duree_reelle_jours,
+        extract(year from c.date_debut)::int as annee,
+        extract(quarter from c.date_debut)::int as trimestre
+    from {{ ref('fait_collectes') }} c
 ),
 
 factures_aggregees as (
     select
-        t.annee,
-        t.mois,
-        t.trimestre,
-        e.raison_sociale,
-        e.domaine_activite_id,
-        z.nom_zone,
-        
+        f.annee,
+        f.mois,
+        f.trimestre,
         count(distinct f.facture_id) as nombre_factures,
         sum(f.montant_total) as montant_total_facture,
         sum(case when f.est_paye then f.montant_total else 0 end) as montant_paye,
         sum(case when not f.est_paye then f.montant_total else 0 end) as montant_impaye,
-        
-        avg(f.delai_paiement_jours) as delai_moyen_paiement,
-        
+        round(avg(coalesce(extract(day from f.delai_paiement_jours), 0))::numeric, 2) as delai_moyen_paiement,
         round(
             (sum(case when f.est_paye then f.montant_total else 0 end)::numeric / 
              nullif(sum(f.montant_total), 0)::numeric * 100), 
             2
         ) as taux_paiement_pct
-        
     from factures f
-    join temps t on f.date_creation_key = t.date_key
-    left join entreprises e on f.entreprise_id = e.entreprise_id
-    left join zones z on z.zone_id = f.zone_id
-    
-    group by 
-        t.annee,
-        t.mois,
-        t.trimestre,
-        e.raison_sociale,
-        e.domaine_activite_id,
-        z.nom_zone
-),
-
-paiements_par_collecte as (
-    select
-        f.collecte_id,
-        t.annee,
-        t.trimestre,
-        sum(case when f.est_paye then f.montant_total else 0 end) as montant_paye_collecte,
-        count(distinct f.facture_id) as nombre_factures_payees
-    from factures f
-    join temps t on f.date_creation_key = t.date_key
-    where f.collecte_id is not null
-    group by f.collecte_id, t.annee, t.trimestre
+    group by f.annee, f.mois, f.trimestre
 ),
 
 collectes_aggregees as (
     select
-        t.annee,
-        t.trimestre,
-        
+        c.annee,
+        c.trimestre,
         count(distinct c.collecte_id) as nombre_collectes,
         sum(c.montant_a_recouvrer) as montant_total_a_recouvrer,
-        coalesce(sum(pc.montant_paye_collecte), 0) as montant_total_recouvre,
-        avg(c.taux_recouvrement) as taux_recouvrement_moyen,
-        avg(c.duree_reelle_jours) as duree_moyenne_collecte
-        
+        sum(case when c.montant_recouvre > 0 then c.montant_recouvre else 0 end) as montant_total_recouvre,
+        round(avg(coalesce(c.taux_recouvrement, 0))::numeric, 2) as taux_recouvrement_moyen,
+        round(avg(abs(coalesce(c.duree_reelle_jours, 0)))::numeric, 1) as duree_moyenne_collecte
     from collectes c
-    join temps t on c.date_debut_key = t.date_key
-    left join paiements_par_collecte pc on c.collecte_id = pc.collecte_id
-        and t.annee = pc.annee
-        and t.trimestre = pc.trimestre
-    
-    group by 
-        t.annee,
-        t.trimestre
+    group by c.annee, c.trimestre
 )
 
 select
-    f.*,
-    c.nombre_collectes,
-    c.montant_total_a_recouvrer,
-    c.montant_total_recouvre,
-    c.taux_recouvrement_moyen
-    
+    f.annee,
+    f.mois,
+    f.trimestre,
+    f.nombre_factures,
+    f.montant_total_facture,
+    f.montant_paye,
+    f.montant_impaye,
+    f.delai_moyen_paiement,
+    f.taux_paiement_pct,
+    coalesce(c.nombre_collectes, 0)::int as nombre_collectes,
+    coalesce(c.montant_total_a_recouvrer, 0) as montant_total_a_recouvrer,
+    coalesce(c.montant_total_recouvre, 0) as montant_total_recouvre,
+    coalesce(c.taux_recouvrement_moyen, 0) as taux_recouvrement_moyen,
+    coalesce(c.duree_moyenne_collecte, 0) as duree_moyenne_collecte
 from factures_aggregees f
 left join collectes_aggregees c 
     on f.annee = c.annee 
     and f.trimestre = c.trimestre
+order by f.annee desc, f.mois desc
