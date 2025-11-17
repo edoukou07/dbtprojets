@@ -13,6 +13,10 @@ import Portefeuille from './pages/Portefeuille'
 import Operationnel from './pages/Operationnel'
 import TestMap from './pages/TestMap'
 import ChatBot from './components/ChatBot'
+import AlertsConfig from './components/AlertsConfig'
+
+import AlertsAnalytics from './pages/AlertsAnalytics'
+import ReportConfig from './pages/ReportConfig'
 
 function App() {
   return (
@@ -38,6 +42,9 @@ function App() {
           <Route path="portefeuille" element={<Portefeuille />} />
           <Route path="operationnel" element={<Operationnel />} />
           <Route path="chatbot" element={<ChatBot />} />
+          <Route path="alerts-config" element={<AlertsConfig />} />
+          <Route path="alerts-analytics" element={<AlertsAnalytics />} />
+          <Route path="report-config" element={<ReportConfig />} />
         </Route>
 
         {/* Redirection par défaut */}

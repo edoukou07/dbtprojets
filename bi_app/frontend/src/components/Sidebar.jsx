@@ -27,6 +27,7 @@ export default function Sidebar() {
     { name: 'Portefeuille Clients', path: '/portefeuille', icon: Users },
     { name: 'KPI Opérationnels', path: '/operationnel', icon: Activity },
     { name: 'Assistant IA', path: '/chatbot', icon: Bot },
+    { name: 'Config. Rapports', path: '/report-config', icon: LayoutDashboard },
   ]
   
   const isActive = (path) => location.pathname === path

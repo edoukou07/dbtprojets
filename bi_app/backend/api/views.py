@@ -80,15 +80,60 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         if domaine_id:
             queryset = queryset.filter(domaine_activite_id=domaine_id)
         
+        # Aggregate everything except delai_moyen_paiement — compute that one separately
+        # to avoid issues when the database returns an interval (timedelta) while the
+        # Django model expects a Decimal. Doing it separately makes conversion robust.
         summary = queryset.aggregate(
             total_factures=Sum('nombre_factures'),
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
             taux_paiement_moyen=Avg('taux_paiement_pct'),
+            # delai_moyen_paiement handled below
             total_collectes=Sum('nombre_collectes'),
             montant_recouvre=Sum('montant_total_recouvre'),
         )
+        # Try to get average of delai_moyen_paiement separately and normalize to days.
+        avg_delai = None
+        try:
+            avg_delai = queryset.aggregate(avg_delai=Avg('delai_moyen_paiement'))['avg_delai']
+        except TypeError:
+            # DB sometimes returns an interval (datetime.timedelta) or other types
+            # that lead Django internals to fail; fall back to manual computation below.
+            avg_delai = None
+
+        # Normalize avg_delai: accept timedelta, Decimal or float
+        if isinstance(avg_delai, (int, float)) and avg_delai is not None:
+            # Assume avg_delai is number of days already (or units used in DWH)
+            summary['delai_moyen_paiement'] = float(avg_delai)
+        elif hasattr(avg_delai, 'total_seconds'):
+            summary['delai_moyen_paiement'] = avg_delai.total_seconds() / 86400
+        elif avg_delai is None:
+            # As a fallback — compute manually using values from the queryset.
+            values = list(queryset.values_list('delai_moyen_paiement', flat=True))
+            # Filter out None
+            values = [v for v in values if v is not None]
+            if values:
+                total_days = 0.0
+                count = 0
+                for v in values:
+                    if hasattr(v, 'total_seconds'):
+                        total_days += v.total_seconds() / 86400
+                    else:
+                        try:
+                            total_days += float(v)
+                        except Exception:
+                            # ignore values we can't parse
+                            continue
+                    count += 1
+                summary['delai_moyen_paiement'] = (total_days / count) if count else 0
+            else:
+                summary['delai_moyen_paiement'] = 0
+        else:
+            try:
+                summary['delai_moyen_paiement'] = float(avg_delai)
+            except Exception:
+                summary['delai_moyen_paiement'] = 0
         
         # Calculs additionnels
         if summary['ca_total']:
