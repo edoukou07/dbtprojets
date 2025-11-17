@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
-  Bot
+  Bot,
+  Shield
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
@@ -20,15 +21,46 @@ export default function Sidebar() {
   const { user, logout } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
   
-  const navigation = [
-    { name: 'Tableau de bord', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Performance Financière', path: '/financier', icon: DollarSign },
-    { name: 'Occupation Zones', path: '/occupation', icon: Building2 },
-    { name: 'Portefeuille Clients', path: '/portefeuille', icon: Users },
-    { name: 'KPI Opérationnels', path: '/operationnel', icon: Activity },
-    { name: 'Assistant IA', path: '/chatbot', icon: Bot },
-    { name: 'Config. Rapports', path: '/report-config', icon: LayoutDashboard },
+  // Tous les tableaux de bord disponibles avec leur ID correspondant
+  const allDashboards = [
+    { name: 'Tableau de bord', path: '/dashboard', icon: LayoutDashboard, id: null },
+    { name: 'Performance Financière', path: '/financier', icon: DollarSign, id: 'financier' },
+    { name: 'Occupation Zones', path: '/occupation', icon: Building2, id: 'occupation' },
+    { name: 'Portefeuille Clients', path: '/portefeuille', icon: Users, id: 'portefeuille' },
+    { name: 'KPI Opérationnels', path: '/operationnel', icon: Activity, id: 'operationnel' },
+    { name: 'Assistant IA', path: '/chatbot', icon: Bot, id: 'chatbot' },
   ]
+
+  // Filtrer les tableaux selon les permissions de l'utilisateur
+  const getFilteredDashboards = () => {
+    console.log('User dashboards:', user?.dashboards) // DEBUG
+    
+    // Par défaut: si pas de permissions assignées (null ou vide), afficher TOUS les tableaux
+    // L'admin peut restreindre en sélectionnant spécifiquement des dashboards
+    if (!user?.dashboards || user.dashboards.length === 0) {
+      return allDashboards
+    }
+    
+    // Si des permissions sont assignées, afficher SEULEMENT celles autorisées
+    return allDashboards.filter(dashboard => {
+      // Toujours afficher dashboard et chatbot (pas de permission requise)
+      if (dashboard.id === null) return true
+      // Sinon, vérifier si dans les permissions
+      return user.dashboards.includes(dashboard.id)
+    })
+  }
+
+  const commonNavigation = getFilteredDashboards()
+
+  const adminNavigation = [
+    { name: 'Config. Rapports', path: '/report-config', icon: LayoutDashboard },
+    { name: 'Gestion Utilisateurs', path: '/users', icon: Shield },
+  ]
+
+  // Afficher les menus d'admin seulement pour admin SIGETI
+  const navigation = user?.is_staff && user?.username === 'admin' 
+    ? [...commonNavigation, ...adminNavigation]
+    : commonNavigation
   
   const isActive = (path) => location.pathname === path
 

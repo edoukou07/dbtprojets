@@ -333,5 +333,12 @@ LOGGING = {
 # OpenAI Configuration (optionnel - pour le mode IA du chatbot)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)
 
-# OpenAI Configuration (optionnel - pour le mode IA du chatbot)
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', None)
+# Email Configuration (SMTP)
+# Configure these environment variables to enable email sending
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')  # Console backend for development
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')  # SMTP server host
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))  # SMTP server port
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'  # Use TLS
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # SMTP username/email
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # SMTP password
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@sigeti-bi.local')  # Sender email

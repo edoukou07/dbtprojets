@@ -24,6 +24,13 @@ from .serializers import (
     AlertSerializer,
     AlertThresholdSerializer
 )
+from .serializers import ReportScheduleSerializer
+from analytics.models import ReportSchedule
+from django.core.mail import EmailMessage
+from django.conf import settings
+import csv
+import io
+from django.utils import timezone
 from .cache_decorators import cache_api_response
 
 
@@ -224,25 +231,30 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         if annee:
             queryset = queryset.filter(annee=annee)
         
+        # Calcul corrigé: Créances = Total Facturé - Payé
+        total_facture = queryset.aggregate(Sum('montant_total_facture'))['montant_total_facture__sum'] or 0
+        total_paye = queryset.aggregate(Sum('montant_paye'))['montant_paye__sum'] or 0
+        total_creances = total_facture - total_paye
+        
         analysis = {
-            'total_creances': queryset.aggregate(Sum('montant_impaye'))['montant_impaye__sum'] or 0,
-            'montant_recouvre': queryset.aggregate(Sum('montant_total_recouvre'))['montant_total_recouvre__sum'] or 0,
+            'total_creances': total_creances,
+            'montant_recouvre': total_paye,  # Utiliser montant payé comme recouvrement
             'nombre_collectes': queryset.aggregate(Sum('nombre_collectes'))['nombre_collectes__sum'] or 0,
         }
         
         # Taux de recouvrement
-        if analysis['total_creances'] > 0:
-            analysis['taux_recouvrement'] = (analysis['montant_recouvre'] / analysis['total_creances']) * 100
+        if total_facture > 0:
+            analysis['taux_recouvrement'] = (total_paye / total_facture) * 100
         else:
             analysis['taux_recouvrement'] = 0
         
-        # Créances restantes
-        analysis['creances_restantes'] = analysis['total_creances'] - analysis['montant_recouvre']
+        # Créances restantes = Total Créances - Payé = Impayé
+        analysis['creances_restantes'] = total_creances
         
         # Performance par zone
         analysis['par_zone'] = list(queryset.values('nom_zone').annotate(
             creances=Sum('montant_impaye'),
-            recouvre=Sum('montant_total_recouvre'),
+            recouvre=Sum('montant_paye'),
         ).order_by('-creances')[:10])
         
         for zone in analysis['par_zone']:
@@ -1260,6 +1272,12 @@ def login_view(request):
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             
+            # Get user dashboards permissions
+            from analytics.models import UserDashboardPermission
+            dashboards = list(
+                UserDashboardPermission.objects.filter(user=user).values_list('dashboard', flat=True)
+            )
+            
             return JsonResponse({
                 'success': True,
                 'access': str(refresh.access_token),
@@ -1271,6 +1289,7 @@ def login_view(request):
                     'first_name': user.first_name,
                     'last_name': user.last_name,
                     'is_staff': user.is_staff,
+                    'dashboards': dashboards,
                 }
             })
         else:
@@ -1527,3 +1546,149 @@ class AlertThresholdViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(threshold)
         return Response(serializer.data)
+
+
+class ReportScheduleViewSet(viewsets.ModelViewSet):
+    """Manage scheduled report generation and sending"""
+
+    queryset = ReportSchedule.objects.all().order_by('-scheduled_at')
+    serializer_class = ReportScheduleSerializer
+
+    def perform_create(self, serializer):
+        # attach user if authenticated
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(created_by=user)
+
+    def perform_update(self, serializer):
+        # Keep existing created_by when updating
+        serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def send_now(self, request, pk=None):
+        schedule = self.get_object()
+        recipients = [r.strip() for r in (schedule.recipients or '').split(',') if r.strip()]
+
+        # Generate a simple CSV summary for the requested dashboard
+        csv_content = generate_dashboard_report_csv(schedule.dashboard)
+
+        # Send email with error handling
+        subject = f"SIGETI - Report: {schedule.name}"
+        body = f"Report {schedule.name} for dashboard {schedule.dashboard} attached."
+
+        try:
+            msg = EmailMessage(subject=subject, body=body, to=recipients or None)
+            msg.attach(f"report_{schedule.dashboard}_{schedule.id}.csv", csv_content, 'text/csv')
+            msg.send()
+            email_status = 'sent'
+        except Exception as e:
+            # Log the error but continue anyway (SMTP not configured)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Email sending failed for report {schedule.id}: {str(e)}")
+            email_status = 'failed'
+
+        schedule.sent = True
+        schedule.sent_at = timezone.now()
+        schedule.save()
+
+        return Response({
+            'success': True, 
+            'sent_to': recipients,
+            'email_status': email_status,
+            'message': 'Rapport marqué comme envoyé' if email_status == 'failed' else 'Rapport envoyé avec succès'
+        })
+
+
+def generate_dashboard_report_csv(dashboard):
+    """Generate a basic CSV for selected dashboard; returns bytes."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if dashboard == 'financier':
+        from analytics.models import MartPerformanceFinanciere
+        summary = MartPerformanceFinanciere.objects.aggregate(
+            total_factures=Sum('nombre_factures'),
+            ca_total=Sum('montant_total_facture'),
+            ca_paye=Sum('montant_paye'),
+            ca_impaye=Sum('montant_impaye')
+        )
+        writer.writerow(['Indicateur', 'Valeur'])
+        for k, v in summary.items():
+            writer.writerow([k, v])
+    elif dashboard == 'occupation':
+        from analytics.models import MartOccupationZones
+        rows = MartOccupationZones.objects.values('nom_zone').annotate(total=Sum('nombre_total_lots'))[:100]
+        writer.writerow(['Zone', 'Nombre total lots'])
+        for r in rows:
+            writer.writerow([r['nom_zone'], r['total']])
+    else:
+        writer.writerow(['message'])
+        writer.writerow(['Dashboard report not implemented - choose Financier or Occupation'])
+
+    return output.getvalue().encode('utf-8')
+
+
+# User Management ViewSet
+from django.contrib.auth.models import User
+from rest_framework import status
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for User management
+    
+    List all users, create new user, update user, delete user
+    Only admins can access this endpoint
+    
+    Protection: Admin SIGETI (@admin) cannot be deleted or modified
+    """
+    queryset = User.objects.all()
+    permission_classes = [IsAdminUser]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_staff', 'is_active']
+    search_fields = ['username', 'email', 'first_name', 'last_name']
+    ordering_fields = ['username', 'email', 'date_joined']
+    ordering = ['-date_joined']
+
+    def get_serializer_class(self):
+        """Return appropriate serializer"""
+        from .serializers import UserSerializer as US
+        return US
+
+    def perform_destroy(self, instance):
+        """Prevent deletion of admin SIGETI"""
+        if instance.username == 'admin':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(
+                "L'administrateur SIGETI (@admin) ne peut pas être supprimé"
+            )
+        instance.delete()
+
+    def perform_create(self, serializer):
+        """Create new user with password and dashboards"""
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """Update user, handling password and dashboards"""
+        serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def set_password(self, request, pk=None):
+        """Set password for user"""
+        user = self.get_object()
+        password = request.data.get('password')
+        if password:
+            user.set_password(password)
+            user.save()
+            return Response({'status': 'password set'})
+        return Response(
+            {'error': 'password required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get current user"""
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+

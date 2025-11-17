@@ -7,6 +7,7 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -30,7 +31,7 @@ def refresh_all_views(request):
     Rafraîchit toutes les vues matérialisées en exécutant dbt run
     """
     try:
-        start_time = datetime.now()
+        start_time = timezone.now()
         
         # Chemin vers le projet dbt (2 niveaux au-dessus de backend)
         dbt_project_path = os.path.abspath(os.path.join(
@@ -48,7 +49,7 @@ def refresh_all_views(request):
             timeout=300  # 5 minutes max
         )
         
-        end_time = datetime.now()
+        end_time = timezone.now()
         duration = (end_time - start_time).total_seconds()
         
         if result.returncode == 0:
@@ -100,7 +101,7 @@ def refresh_specific_view(request, view_name):
                 'available_views': MATERIALIZED_VIEWS
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        start_time = datetime.now()
+        start_time = timezone.now()
         
         dbt_project_path = os.path.abspath(os.path.join(
             settings.BASE_DIR, '..', '..'
@@ -117,7 +118,7 @@ def refresh_specific_view(request, view_name):
             timeout=180  # 3 minutes max pour une vue
         )
         
-        end_time = datetime.now()
+        end_time = timezone.now()
         duration = (end_time - start_time).total_seconds()
         
         if result.returncode == 0:
@@ -205,7 +206,7 @@ def get_refresh_status(request):
             'success': True,
             'views': views_status,
             'total_views': len(MATERIALIZED_VIEWS),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': timezone.now().isoformat()
         }, status=status.HTTP_200_OK)
         
     except Exception as e:

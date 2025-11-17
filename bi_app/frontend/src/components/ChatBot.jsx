@@ -718,6 +718,99 @@ const ChatBot = () => {
                   </div>
                 )}
                 
+                {/* Alertes Intelligentes */}
+                {msg.alerts && msg.alerts.length > 0 && (
+                  <div className="mt-3 p-4 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-lg">
+                    <div className="text-sm font-bold text-red-800 mb-3 flex items-center">
+                      🚨 Alertes Intelligentes ({msg.alerts.length})
+                    </div>
+                    
+                    {/* Résumé des alertes */}
+                    {msg.alerts_summary && (
+                      <div className="mb-3 p-2 bg-white rounded text-xs">
+                        <div className="font-semibold mb-2">{msg.alerts_summary.message}</div>
+                        <div className="flex gap-3 text-xs">
+                          {msg.alerts_summary.critical_count > 0 && (
+                            <span className="px-2 py-1 bg-red-100 text-red-800 rounded">
+                              🔴 {msg.alerts_summary.critical_count} Critique(s)
+                            </span>
+                          )}
+                          {msg.alerts_summary.warning_count > 0 && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded">
+                              ⚠️ {msg.alerts_summary.warning_count} Warning(s)
+                            </span>
+                          )}
+                          {msg.alerts_summary.info_count > 0 && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                              ℹ️ {msg.alerts_summary.info_count} Info(s)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Liste des alertes (max 5 affichées) */}
+                    <div className="space-y-2">
+                      {msg.alerts.slice(0, 5).map((alert, i) => (
+                        <div 
+                          key={i} 
+                          className={`p-3 rounded-lg border-l-4 ${
+                            alert.severity === 'critical' ? 'bg-red-50 border-red-500' :
+                            alert.severity === 'warning' ? 'bg-orange-50 border-orange-500' :
+                            'bg-blue-50 border-blue-500'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{alert.icon}</span>
+                              <span className="text-xs font-bold text-gray-800">{alert.title}</span>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              alert.severity === 'critical' ? 'bg-red-200 text-red-900' :
+                              alert.severity === 'warning' ? 'bg-orange-200 text-orange-900' :
+                              'bg-blue-200 text-blue-900'
+                            }`}>
+                              {alert.severity.toUpperCase()}
+                            </span>
+                          </div>
+                          
+                          <div className="text-xs text-gray-800 font-medium mb-1">
+                            {alert.message}
+                          </div>
+                          
+                          {alert.details && (
+                            <div className="text-xs text-gray-600 mb-2">
+                              {alert.details}
+                            </div>
+                          )}
+                          
+                          {alert.recommendations && alert.recommendations.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              <div className="text-xs font-semibold text-gray-700 mb-1">
+                                💡 Recommandations:
+                              </div>
+                              <ul className="text-xs text-gray-700 space-y-1">
+                                {alert.recommendations.map((rec, j) => (
+                                  <li key={j} className="flex items-start">
+                                    <span className="mr-1">•</span>
+                                    <span>{rec}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {msg.alerts.length > 5 && (
+                        <div className="text-xs text-center text-gray-600 italic pt-2 border-t">
+                          + {msg.alerts.length - 5} autre(s) alerte(s) - Consultez le rapport complet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Anomalies detectées */}
                 {msg.anomalies && msg.anomalies.length > 0 && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">

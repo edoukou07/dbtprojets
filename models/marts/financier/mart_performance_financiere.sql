@@ -64,8 +64,6 @@ factures_aggregees as (
     from factures f
     join temps t on f.date_creation_key = t.date_key
     left join entreprises e on f.entreprise_id = e.entreprise_id
-    left join collectes c on f.collecte_id = c.collecte_id
-    left join zones z on c.collecte_id = z.zone_id  -- À ajuster selon votre modèle
     
     group by 
         t.annee,
@@ -81,7 +79,7 @@ collectes_aggregees as (
         t.annee,
         t.trimestre,
         
-        -- Métriques de collecte
+        -- Métriques de collecte - SANS zone car montant_recouvre est par collecte, pas par zone
         count(distinct c.collecte_id) as nombre_collectes,
         sum(c.montant_a_recouvrer) as montant_total_a_recouvrer,
         sum(c.montant_recouvre) as montant_total_recouvre,
@@ -107,4 +105,7 @@ select
 from factures_aggregees f
 left join collectes_aggregees c 
     on f.annee = c.annee 
+    and f.trimestre = c.trimestre 
+    on f.annee = c.annee 
     and f.trimestre = c.trimestre
+    and f.nom_zone = c.nom_zone

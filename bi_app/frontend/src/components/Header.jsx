@@ -1,11 +1,12 @@
-import { useLocation } from 'react-router-dom'
-import { Bell, Search, Settings, RefreshCw } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Bell, Search, Settings, RefreshCw, Activity } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import ThemeToggle from './ThemeToggle'
 import { useState } from 'react'
 
 export default function Header() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [refreshing, setRefreshing] = useState(false)
 
@@ -87,9 +88,22 @@ export default function Header() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Settings */}
-            <button className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            {/* Settings - Navigation vers configuration des alertes */}
+            <button 
+              onClick={() => navigate('/alerts-config')}
+              className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Configuration des alertes"
+            >
               <Settings className="w-5 h-5" />
+            </button>
+            
+            {/* Analytics - Navigation vers analytics des alertes */}
+            <button 
+              onClick={() => navigate('/alerts-analytics')}
+              className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Analytics des alertes"
+            >
+              <Activity className="w-5 h-5" />
             </button>
 
             {/* User Badge */}

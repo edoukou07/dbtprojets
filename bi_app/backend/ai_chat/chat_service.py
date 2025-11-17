@@ -10,6 +10,7 @@ from decimal import Decimal
 from datetime import datetime, date
 from .business_rules import BusinessRules
 from .trend_analysis import TrendAnalyzer
+from .alert_system import AlertSystem
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class ChatService:
         self.conversation_context = []  # Historique pour suggestions contextuelles
         self.business_rules = BusinessRules()  # Règles métier
         self.trend_analyzer = TrendAnalyzer()  # Analyse de tendances
+        self.alert_system = AlertSystem()  # Système d'alertes
     
     def execute_query(self, sql: str, max_rows: int = 100) -> Dict:
         """
@@ -185,6 +187,14 @@ class ChatService:
             critical_anomalies = [a for a in anomalies if a['severity'] == 'error']
             if critical_anomalies:
                 logger.warning(f"⚠️ {len(critical_anomalies)} anomalies critiques détectées")
+        
+        # Générer des alertes intelligentes si la question le demande
+        if 'problème' in question.lower() or 'alerte' in question.lower() or 'risque' in question.lower():
+            alerts = self.alert_system.analyze_all_zones(data)
+            if alerts:
+                response['alerts'] = alerts
+                response['alerts_summary'] = self.alert_system.get_alerts_summary(alerts)
+                logger.info(f"🚨 {len(alerts)} alerte(s) générée(s)")
         
         # Mettre à jour le contexte de conversation
         self.conversation_context.append({

@@ -25,7 +25,6 @@ import {
 import { occupationAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
 import ZonesMap from '../components/ZonesMap'
-import RefreshViewsButton from '../components/RefreshViewsButton'
 import { exportOccupationToExcel } from '../utils/excelExport'
 
 export default function Occupation() {
@@ -169,7 +168,6 @@ export default function Occupation() {
           <p className="text-gray-600 dark:text-gray-400 mt-1">Analyse de l'occupation des zones industrielles</p>
         </div>
         <div className="flex items-center gap-3">
-          <RefreshViewsButton />
           <button
             onClick={() => exportOccupationToExcel(summary, zonesData, topZones)}
             disabled={!summary || !zonesData}

@@ -259,3 +259,56 @@ class AlertThreshold(models.Model):
     
     def __str__(self):
         return f"{self.alert_type} {self.threshold_operator} {self.threshold_value}"
+
+
+class ReportSchedule(models.Model):
+    """Schedule for report generation and dispatch by email"""
+
+    DASHBOARD_CHOICES = [
+        ('dashboard', 'Tableau de bord'),
+        ('financier', 'Performance Financière'),
+        ('occupation', 'Occupation Zones'),
+        ('clients', 'Portefeuille Clients'),
+        ('operationnel', 'KPI Opérationnels'),
+        ('alerts', 'Alerts Analytics'),
+    ]
+
+    name = models.CharField(max_length=255)
+    dashboard = models.CharField(max_length=50, choices=DASHBOARD_CHOICES)
+    scheduled_at = models.DateTimeField()
+    recipients = models.TextField(null=True, blank=True, help_text="Emails séparés par des virgules")
+    created_by = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = True
+        db_table = 'bi_report_schedules'
+
+    def __str__(self):
+        return f"Report {self.name} -> {self.dashboard} @ {self.scheduled_at}"
+
+
+class UserDashboardPermission(models.Model):
+    """Model to manage user access to specific dashboards"""
+    
+    DASHBOARD_CHOICES = [
+        ('dashboard', 'Tableau de bord'),
+        ('financier', 'Performance Financière'),
+        ('occupation', 'Occupation Zones'),
+        ('portefeuille', 'Portefeuille Clients'),
+        ('operationnel', 'KPI Opérationnels'),
+    ]
+    
+    user = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='dashboard_permissions')
+    dashboard = models.CharField(max_length=50, choices=DASHBOARD_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        managed = True
+        db_table = 'bi_user_dashboard_permissions'
+        unique_together = ('user', 'dashboard')
+    
+    def __str__(self):
+        return f"{self.user.username} -> {self.get_dashboard_display()}"

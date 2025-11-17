@@ -8,8 +8,19 @@ from analytics.models import (
     MartPortefeuilleClients,
     MartKPIOperationnels,
     Alert,
-    AlertThreshold
+    AlertThreshold,
+    UserDashboardPermission,
+    ReportSchedule
 )
+
+
+class ReportScheduleSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    
+    class Meta:
+        model = ReportSchedule
+        fields = ['id', 'name', 'dashboard', 'scheduled_at', 'recipients', 'created_by', 'created_by_username', 'created_at', 'sent', 'sent_at']
+        read_only_fields = ['id', 'created_by', 'created_at', 'sent', 'sent_at']
 
 
 class MartPerformanceFinanciereSerializer(serializers.ModelSerializer):
@@ -54,3 +65,72 @@ class AlertThresholdSerializer(serializers.ModelSerializer):
         model = AlertThreshold
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at', 'last_checked')
+
+
+# User Serializer
+from django.contrib.auth.models import User
+from django.db import transaction
+
+
+class UserSerializer(serializers.ModelSerializer):
+    dashboards = serializers.SerializerMethodField()
+    dashboards_write = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        write_only=True
+    )
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password', 'is_staff', 'is_active', 'dashboards', 'dashboards_write', 'date_joined']
+        read_only_fields = ['id', 'date_joined', 'dashboards']
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': False}
+        }
+    
+    def get_dashboards(self, obj):
+        """Retrieve list of dashboards the user has access to"""
+        permissions = UserDashboardPermission.objects.filter(user=obj).values_list('dashboard', flat=True)
+        return list(permissions)
+
+    def create(self, validated_data):
+        # Extraire dashboards
+        dashboards = validated_data.pop('dashboards_write', [])
+        password = validated_data.pop('password', None)
+        
+        with transaction.atomic():
+            user = User(**validated_data)
+            if password:
+                user.set_password(password)
+            user.save()
+            
+            # Create dashboard permissions
+            for dashboard in dashboards:
+                UserDashboardPermission.objects.get_or_create(
+                    user=user,
+                    dashboard=dashboard
+                )
+        
+        return user
+
+    def update(self, instance, validated_data):
+        # Extraire dashboards
+        dashboards = validated_data.pop('dashboards_write', [])
+        password = validated_data.pop('password', None)
+        
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            if password:
+                instance.set_password(password)
+            instance.save()
+            
+            # Update dashboard permissions
+            UserDashboardPermission.objects.filter(user=instance).delete()
+            for dashboard in dashboards:
+                UserDashboardPermission.objects.get_or_create(
+                    user=instance,
+                    dashboard=dashboard
+                )
+        
+        return instance

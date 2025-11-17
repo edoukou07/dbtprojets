@@ -7,7 +7,16 @@ const API_URL = 'http://localhost:8000/api'
 
 export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
   const [selectedAlert, setSelectedAlert] = useState(null)
+  const [alertsEnabled, setAlertsEnabled] = useState(() => {
+    return localStorage.getItem('alerts_enabled') !== 'false'
+  })
   const queryClient = useQueryClient()
+
+  const toggleAlerts = () => {
+    const newState = !alertsEnabled
+    setAlertsEnabled(newState)
+    localStorage.setItem('alerts_enabled', newState.toString())
+  }
 
   // Fetch alerts
   const { data: alerts, isLoading } = useQuery({
@@ -21,6 +30,7 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
       return response.data
     },
     staleTime: 30 * 1000, // Rafraîchir toutes les 30 secondes
+    enabled: alertsEnabled, // N'exécute la requête que si les alertes sont activées
   })
 
   // Acknowledge mutation
@@ -106,6 +116,31 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
 
   const displayAlerts = alerts?.slice(0, maxAlerts) || []
 
+  // Si les alertes sont désactivées
+  if (!alertsEnabled) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <BellOff className="w-5 h-5 text-gray-400" />
+            <h3 className="font-semibold text-gray-900">Alertes</h3>
+          </div>
+          <button
+            onClick={toggleAlerts}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="text-sm font-medium">Activer les alertes</span>
+          </button>
+        </div>
+        <div className="text-center py-4">
+          <p className="text-gray-600">Les alertes sont désactivées</p>
+          <p className="text-sm text-gray-500 mt-1">Activez-les pour surveiller les indicateurs critiques</p>
+        </div>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -119,10 +154,26 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
 
   if (!displayAlerts || displayAlerts.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-        <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-2" />
-        <p className="text-gray-600 font-medium">Aucune alerte active</p>
-        <p className="text-sm text-gray-500 mt-1">Tous les indicateurs sont dans les normes</p>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Bell className="w-5 h-5 text-green-600" />
+            <h3 className="font-semibold text-gray-900">Alertes</h3>
+          </div>
+          <button
+            onClick={toggleAlerts}
+            className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Désactiver les alertes"
+          >
+            <BellOff className="w-4 h-4" />
+            <span>Désactiver</span>
+          </button>
+        </div>
+        <div className="p-6 text-center">
+          <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-2" />
+          <p className="text-gray-600 font-medium">Aucune alerte active</p>
+          <p className="text-sm text-gray-500 mt-1">Tous les indicateurs sont dans les normes</p>
+        </div>
       </div>
     )
   }
@@ -138,6 +189,14 @@ export default function AlertsPanel({ showOnlyActive = false, maxAlerts = 5 }) {
             {alerts?.filter(a => a.status === 'active').length || 0}
           </span>
         </div>
+        <button
+          onClick={toggleAlerts}
+          className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Désactiver les alertes"
+        >
+          <BellOff className="w-4 h-4" />
+          <span>Désactiver</span>
+        </button>
       </div>
 
       {/* Alerts List */}

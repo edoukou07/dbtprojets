@@ -12,6 +12,8 @@ from .views import (
     MartKPIOperationnelsViewSet,
     AlertViewSet,
     AlertThresholdViewSet,
+    ReportScheduleViewSet,
+    UserViewSet,
     login_view,
     logout_view,
     current_user_view,
@@ -41,6 +43,10 @@ from .refresh_views import (
     refresh_specific_view,
     get_refresh_status,
 )
+from .alert_config_views import (
+    AlertThresholdsView,
+    AlertThresholdsResetView,
+)
 
 router = DefaultRouter()
 router.register(r'financier', MartPerformanceFinanciereViewSet, basename='financier')
@@ -49,6 +55,8 @@ router.register(r'clients', MartPortefeuilleClientsViewSet, basename='clients')
 router.register(r'operationnel', MartKPIOperationnelsViewSet, basename='operationnel')
 router.register(r'alerts', AlertViewSet, basename='alerts')
 router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thresholds')
+router.register(r'reports', ReportScheduleViewSet, basename='reports')
+router.register(r'auth/users', UserViewSet, basename='users')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -81,6 +89,10 @@ urlpatterns = [
     
     # Refresh Materialized Views endpoints
     path('refresh/all/', refresh_all_views, name='refresh-all-views'),
-    path('refresh/<str:view_name>/', refresh_specific_view, name='refresh-specific-view'),
     path('refresh/status/', get_refresh_status, name='refresh-status'),
+    path('refresh/<str:view_name>/', refresh_specific_view, name='refresh-specific-view'),
+    
+    # Alert Configuration endpoints
+    path('alerts/thresholds/', AlertThresholdsView.as_view(), name='alert-thresholds'),
+    path('alerts/thresholds/reset/', AlertThresholdsResetView.as_view(), name='alert-thresholds-reset'),
 ]

@@ -84,3 +84,12 @@ export const operationnelAPI = {
 };
 
 export default api;
+
+// Reports API
+export const reportsAPI = {
+  create: (payload) => api.post('/reports/', payload),
+  update: (id, payload) => api.put(`/reports/${id}/`, payload),
+  delete: (id) => api.delete(`/reports/${id}/`),
+  sendNow: (id) => api.post(`/reports/${id}/send_now/`),
+  list: () => api.get('/reports/'),
+}

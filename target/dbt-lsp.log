@@ -1,0 +1,355 @@
+==================== 2025-11-15 20:45:16.665107 | cd7b418d-7924-4e8b-a669-f7b491b59a88 ====================
+20:45:16.665364 [info ]: Starting dbt LSP server
+20:45:16.665454 [info ]: Connecting to LSP client on port 8001
+20:45:16.673006 [info ]: Successfully connected to LSP client
+20:45:16.673035 [info ]: Creating LSP service...
+20:45:16.804734 [info ]: Creating LSP server...
+20:45:16.804776 [info ]: Starting LSP server...
+20:45:24.228048 [warn ]: dbt1041: Found package-lock.yml file with out of date formatting, ignoring...
+20:45:24.496521 [info ]: Cached model count updated: 21 models (estimate)
+20:45:33.453982 [error]: dbt0102: Deprecated test arguments: ["combination_of_columns"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:69:13
+20:45:33.462472 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:91:26
+20:45:33.464406 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:111:26
+20:45:33.471493 [error]: dbt0102: Deprecated test arguments: ["datepart", "field", "interval"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:12:21
+20:45:33.473947 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:21:26
+20:45:33.475234 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:29:26
+20:45:33.479075 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:61:26
+20:45:33.482058 [error]: dbt0102: Deprecated test arguments: ["at_least"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:36:25
+20:45:33.484273 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:39:26
+20:45:33.502712 [error]: dbt0102: Deprecated test arguments: ["field", "to"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:54:22
+20:45:33.504431 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:46:26
+20:45:44.319440 [info ]: Cached model count updated: 21 models (accurate)
+20:46:18.651086 [warn ]: dbt1050: No metadata adapter found for adapter type postgres
+20:46:21.557641 [warn ]: dbt1000: Detected unsafe introspection which may lead to non-deterministic static analysis. To suppress this warning, set static_analysis to 'unsafe' in the nodes' configuration. Learn more: https://docs.getdbt.com/docs/fusion/new-concepts. Nodes: 'model.sigeti_dwh.dim_temps' (execute)
+20:46:25.690959 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Missing schema for 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Expected at db/schemas/sigeti_node_db/public/demandes_attribution).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.700707 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.paiement_factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.paiement_factures' (Expected at db/schemas/sigeti_node_db/public/paiement_factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.700932 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Missing schema for 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Expected at db/schemas/sigeti_node_db/public/zones_industrielles).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.701082 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.lots' (Missing schema for 'source.sigeti_dwh.sigeti_source.lots' (Expected at db/schemas/sigeti_node_db/public/lots).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.701257 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.collectes' (Missing schema for 'source.sigeti_dwh.sigeti_source.collectes' (Expected at db/schemas/sigeti_node_db/public/collectes).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.701384 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.entreprises' (Missing schema for 'source.sigeti_dwh.sigeti_source.entreprises' (Expected at db/schemas/sigeti_node_db/public/entreprises).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.701562 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.domaines_activites' (Missing schema for 'source.sigeti_dwh.sigeti_source.domaines_activites' (Expected at db/schemas/sigeti_node_db/public/domaines_activites).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:46:25.701664 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.factures' (Expected at db/schemas/sigeti_node_db/public/factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+20:47:56.910365 [debug]: Query executed on node model.sigeti_dwh.dim_temps:
+/* {"app":"dbt","dbt_version":"2.0.0","profile_name":"sigeti_dwh","target_name":"dev","connection_name":""} */
+select 
+        ((cast('2030-12-31' as date))::date - (cast('2020-01-01' as date))::date)
+20:48:02.934691 [info ]: Cached model count updated: 21 models (accurate)
+==================== 2025-11-15 23:54:40.234930 | e601d146-26df-4ed7-bf22-4adcff462aad ====================
+23:54:40.281632 [info ]: Starting dbt LSP server
+23:54:40.282325 [info ]: Connecting to LSP client on port 8001
+23:54:40.308946 [info ]: Successfully connected to LSP client
+23:54:40.308979 [info ]: Creating LSP service...
+23:54:41.410810 [info ]: Creating LSP server...
+23:54:41.410840 [info ]: Starting LSP server...
+23:54:44.153654 [warn ]: dbt1041: Found package-lock.yml file with out of date formatting, ignoring...
+23:54:44.802319 [info ]: Cached model count updated: 21 models (estimate)
+23:54:48.060722 [error]: dbt0102: Deprecated test arguments: ["combination_of_columns"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:69:13
+23:54:48.103397 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:91:26
+23:54:48.105422 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:111:26
+23:54:48.111176 [error]: dbt0102: Deprecated test arguments: ["datepart", "field", "interval"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:12:21
+23:54:48.112318 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:21:26
+23:54:48.113637 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:29:26
+23:54:48.115735 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:61:26
+23:54:48.117725 [error]: dbt0102: Deprecated test arguments: ["at_least"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:36:25
+23:54:48.118941 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:39:26
+23:54:48.121836 [error]: dbt0102: Deprecated test arguments: ["field", "to"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:54:22
+23:54:48.123093 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:46:26
+23:54:48.481117 [info ]: Cached model count updated: 21 models (accurate)
+23:54:49.319028 [warn ]: dbt1050: No metadata adapter found for adapter type postgres
+23:54:49.772569 [warn ]: dbt1000: Detected unsafe introspection which may lead to non-deterministic static analysis. To suppress this warning, set static_analysis to 'unsafe' in the nodes' configuration. Learn more: https://docs.getdbt.com/docs/fusion/new-concepts. Nodes: 'model.sigeti_dwh.dim_temps' (execute)
+23:54:49.985125 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.lots' (Missing schema for 'source.sigeti_dwh.sigeti_source.lots' (Expected at db/schemas/sigeti_node_db/public/lots).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998001 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.paiement_factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.paiement_factures' (Expected at db/schemas/sigeti_node_db/public/paiement_factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998114 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.entreprises' (Missing schema for 'source.sigeti_dwh.sigeti_source.entreprises' (Expected at db/schemas/sigeti_node_db/public/entreprises).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998238 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Missing schema for 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Expected at db/schemas/sigeti_node_db/public/zones_industrielles).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998331 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.domaines_activites' (Missing schema for 'source.sigeti_dwh.sigeti_source.domaines_activites' (Expected at db/schemas/sigeti_node_db/public/domaines_activites).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998428 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Missing schema for 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Expected at db/schemas/sigeti_node_db/public/demandes_attribution).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998586 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.collectes' (Missing schema for 'source.sigeti_dwh.sigeti_source.collectes' (Expected at db/schemas/sigeti_node_db/public/collectes).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:49.998695 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.factures' (Expected at db/schemas/sigeti_node_db/public/factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+23:54:50.988389 [debug]: Query executed on node model.sigeti_dwh.dim_temps:
+/* {"app":"dbt","dbt_version":"2.0.0","profile_name":"sigeti_dwh","target_name":"dev","connection_name":""} */
+select 
+        ((cast('2030-12-31' as date))::date - (cast('2020-01-01' as date))::date)
+23:54:51.657715 [info ]: Cached model count updated: 21 models (accurate)
+==================== 2025-11-16 14:05:42.678206 | 86def87e-0e03-4528-9796-e56078cf1acc ====================
+14:05:42.678320 [info ]: Starting dbt LSP server
+14:05:42.678357 [info ]: Connecting to LSP client on port 8001
+14:05:42.682187 [info ]: Successfully connected to LSP client
+14:05:42.682216 [info ]: Creating LSP service...
+14:05:42.747699 [info ]: Creating LSP server...
+14:05:42.747722 [info ]: Starting LSP server...
+14:05:43.771086 [warn ]: dbt1041: Found package-lock.yml file with out of date formatting, ignoring...
+14:05:44.851652 [info ]: Cached model count updated: 21 models (estimate)
+14:05:47.411932 [error]: dbt0102: Deprecated test arguments: ["combination_of_columns"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:69:13
+14:05:47.417425 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:91:26
+14:05:47.421112 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:111:26
+14:05:47.427582 [error]: dbt0102: Deprecated test arguments: ["datepart", "field", "interval"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:12:21
+14:05:47.428907 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:21:26
+14:05:47.430132 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:29:26
+14:05:47.432120 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:61:26
+14:05:47.434139 [error]: dbt0102: Deprecated test arguments: ["at_least"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:36:25
+14:05:47.435509 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:39:26
+14:05:47.442310 [error]: dbt0102: Deprecated test arguments: ["field", "to"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:54:22
+14:05:47.444961 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:46:26
+14:05:47.531850 [info ]: Cached model count updated: 21 models (accurate)
+14:05:47.547009 [warn ]: dbt1050: No metadata adapter found for adapter type postgres
+14:05:47.799012 [warn ]: dbt1000: Detected unsafe introspection which may lead to non-deterministic static analysis. To suppress this warning, set static_analysis to 'unsafe' in the nodes' configuration. Learn more: https://docs.getdbt.com/docs/fusion/new-concepts. Nodes: 'model.sigeti_dwh.dim_temps' (execute)
+14:05:47.800347 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Missing schema for 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Expected at db/schemas/sigeti_node_db/public/zones_industrielles).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.802305 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.collectes' (Missing schema for 'source.sigeti_dwh.sigeti_source.collectes' (Expected at db/schemas/sigeti_node_db/public/collectes).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.802647 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.factures' (Expected at db/schemas/sigeti_node_db/public/factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.802773 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Missing schema for 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Expected at db/schemas/sigeti_node_db/public/demandes_attribution).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.802912 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.paiement_factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.paiement_factures' (Expected at db/schemas/sigeti_node_db/public/paiement_factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.803017 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.lots' (Missing schema for 'source.sigeti_dwh.sigeti_source.lots' (Expected at db/schemas/sigeti_node_db/public/lots).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.803173 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.entreprises' (Missing schema for 'source.sigeti_dwh.sigeti_source.entreprises' (Expected at db/schemas/sigeti_node_db/public/entreprises).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:47.803337 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.domaines_activites' (Missing schema for 'source.sigeti_dwh.sigeti_source.domaines_activites' (Expected at db/schemas/sigeti_node_db/public/domaines_activites).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:05:48.935926 [debug]: Query executed on node model.sigeti_dwh.dim_temps:
+/* {"app":"dbt","dbt_version":"2.0.0","profile_name":"sigeti_dwh","target_name":"dev","connection_name":""} */
+select 
+        ((cast('2030-12-31' as date))::date - (cast('2020-01-01' as date))::date)
+14:05:49.005208 [info ]: Cached model count updated: 21 models (accurate)
+==================== 2025-11-17 09:50:14.980684 | c415d440-ea8a-40ff-9661-87018efe91ce ====================
+09:50:16.085773 [info ]: Starting dbt LSP server
+09:50:16.898648 [info ]: Connecting to LSP client on port 8000
+09:50:22.717214 [info ]: Successfully connected to LSP client
+09:50:22.717239 [info ]: Creating LSP service...
+09:50:30.918810 [info ]: Creating LSP server...
+09:50:30.918843 [info ]: Starting LSP server...
+09:51:00.766223 [warn ]: dbt1041: Found package-lock.yml file with out of date formatting, ignoring...
+09:51:04.448241 [info ]: Cached model count updated: 21 models (estimate)
+09:51:34.669169 [error]: dbt0102: Deprecated test arguments: ["combination_of_columns"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:69:13
+09:51:34.840634 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:91:26
+09:51:34.888469 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:111:26
+09:51:34.893747 [error]: dbt0102: Deprecated test arguments: ["datepart", "field", "interval"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:12:21
+09:51:34.895056 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:21:26
+09:51:34.896456 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:29:26
+09:51:34.898573 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:61:26
+09:51:34.900472 [error]: dbt0102: Deprecated test arguments: ["at_least"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:36:25
+09:51:34.990367 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:39:26
+09:51:34.992443 [error]: dbt0102: Deprecated test arguments: ["field", "to"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:54:22
+09:51:34.993945 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:46:26
+09:51:37.352908 [info ]: Cached model count updated: 21 models (accurate)
+09:51:41.534285 [warn ]: dbt1050: No metadata adapter found for adapter type postgres
+09:51:43.012187 [warn ]: dbt1000: Detected unsafe introspection which may lead to non-deterministic static analysis. To suppress this warning, set static_analysis to 'unsafe' in the nodes' configuration. Learn more: https://docs.getdbt.com/docs/fusion/new-concepts. Nodes: 'model.sigeti_dwh.dim_temps' (execute)
+09:51:44.089882 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Missing schema for 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Expected at db/schemas/sigeti_node_db/public/demandes_attribution).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.101614 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Missing schema for 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Expected at db/schemas/sigeti_node_db/public/zones_industrielles).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.101780 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.collectes' (Missing schema for 'source.sigeti_dwh.sigeti_source.collectes' (Expected at db/schemas/sigeti_node_db/public/collectes).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.101903 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.paiement_factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.paiement_factures' (Expected at db/schemas/sigeti_node_db/public/paiement_factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.101990 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.lots' (Missing schema for 'source.sigeti_dwh.sigeti_source.lots' (Expected at db/schemas/sigeti_node_db/public/lots).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.102140 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.factures' (Expected at db/schemas/sigeti_node_db/public/factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.102288 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.domaines_activites' (Missing schema for 'source.sigeti_dwh.sigeti_source.domaines_activites' (Expected at db/schemas/sigeti_node_db/public/domaines_activites).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:44.102395 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.entreprises' (Missing schema for 'source.sigeti_dwh.sigeti_source.entreprises' (Expected at db/schemas/sigeti_node_db/public/entreprises).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+09:51:48.461035 [debug]: Query executed on node model.sigeti_dwh.dim_temps:
+/* {"app":"dbt","dbt_version":"2.0.0","profile_name":"sigeti_dwh","target_name":"dev","connection_name":""} */
+select 
+        ((cast('2030-12-31' as date))::date - (cast('2020-01-01' as date))::date)
+09:51:50.971648 [info ]: Cached model count updated: 21 models (accurate)
+==================== 2025-11-17 14:31:09.272916 | e7c4f758-a1d4-41ff-8dcf-8550c5760d65 ====================
+14:31:09.273071 [info ]: Starting dbt LSP server
+14:31:09.273125 [info ]: Connecting to LSP client on port 8000
+14:31:09.280347 [info ]: Successfully connected to LSP client
+14:31:09.280375 [info ]: Creating LSP service...
+14:31:09.411196 [info ]: Creating LSP server...
+14:31:09.411212 [info ]: Starting LSP server...
+14:31:19.944015 [warn ]: dbt1041: Found package-lock.yml file with out of date formatting, ignoring...
+14:31:20.017999 [info ]: Cached model count updated: 21 models (estimate)
+14:31:47.222875 [error]: dbt0102: Deprecated test arguments: ["combination_of_columns"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:69:13
+14:31:49.286328 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:91:26
+14:31:49.847821 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:111:26
+14:31:50.308534 [error]: dbt0102: Deprecated test arguments: ["datepart", "field", "interval"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:12:21
+14:31:50.309929 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:21:26
+14:31:50.311278 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:29:26
+14:31:50.313186 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:61:26
+14:31:50.315696 [error]: dbt0102: Deprecated test arguments: ["at_least"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:36:25
+14:31:51.060838 [error]: dbt0102: Deprecated test arguments: ["max_value", "min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:39:26
+14:31:51.063770 [error]: dbt0102: Deprecated test arguments: ["field", "to"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:54:22
+14:31:51.065031 [error]: dbt0102: Deprecated test arguments: ["min_value"] at top-level detected. Please migrate to the new format under the 'arguments' field: https://docs.getdbt.com/reference/deprecations#missingargumentspropertyingenerictestdeprecation.
+  --> models\tests_quality.yml:46:26
+14:32:21.833576 [info ]: Cached model count updated: 21 models (accurate)
+14:33:25.926458 [warn ]: dbt1050: No metadata adapter found for adapter type postgres
+14:33:39.247593 [warn ]: dbt1000: Detected unsafe introspection which may lead to non-deterministic static analysis. To suppress this warning, set static_analysis to 'unsafe' in the nodes' configuration. Learn more: https://docs.getdbt.com/docs/fusion/new-concepts. Nodes: 'model.sigeti_dwh.dim_temps' (execute)
+14:34:03.738318 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.collectes' (Missing schema for 'source.sigeti_dwh.sigeti_source.collectes' (Expected at db/schemas/sigeti_node_db/public/collectes).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.039908 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.factures' (Expected at db/schemas/sigeti_node_db/public/factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.040061 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.entreprises' (Missing schema for 'source.sigeti_dwh.sigeti_source.entreprises' (Expected at db/schemas/sigeti_node_db/public/entreprises).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.040229 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Missing schema for 'source.sigeti_dwh.sigeti_source.zones_industrielles' (Expected at db/schemas/sigeti_node_db/public/zones_industrielles).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.040348 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.lots' (Missing schema for 'source.sigeti_dwh.sigeti_source.lots' (Expected at db/schemas/sigeti_node_db/public/lots).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.040483 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.paiement_factures' (Missing schema for 'source.sigeti_dwh.sigeti_source.paiement_factures' (Expected at db/schemas/sigeti_node_db/public/paiement_factures).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.040596 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Missing schema for 'source.sigeti_dwh.sigeti_source.demandes_attribution' (Expected at db/schemas/sigeti_node_db/public/demandes_attribution).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:04.040726 [error]: dbt1053: Remote execution: failed to hydrate schema for source 'source.sigeti_dwh.sigeti_source.domaines_activites' (Missing schema for 'source.sigeti_dwh.sigeti_source.domaines_activites' (Expected at db/schemas/sigeti_node_db/public/domaines_activites).
+Hint: run `db seed` if seeds map to sources, or `db sample --persist local ..` to pull sample source data.).
+Schemas should be fetched during pre-compile (Downloading Schemas).
+Ensure remote connectivity/permissions or retry with '--static-analysis off' if appropriate.
+14:34:46.041857 [debug]: Query executed on node model.sigeti_dwh.dim_temps:
+/* {"app":"dbt","dbt_version":"2.0.0","profile_name":"sigeti_dwh","target_name":"dev","connection_name":""} */
+select 
+        ((cast('2030-12-31' as date))::date - (cast('2020-01-01' as date))::date)
+14:34:57.316202 [info ]: Cached model count updated: 21 models (accurate)
