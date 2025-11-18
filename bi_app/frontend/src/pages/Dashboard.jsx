@@ -162,44 +162,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Clients KPIs */}
-      <section>
-        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-          <Users className="w-6 h-6 mr-2 text-blue-600" />
-          Portefeuille Clients
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Total Clients"
-            value={clientsData?.total_clients?.toLocaleString('fr-FR') || '0'}
-            subtitle="Entreprises actives"
-            icon={Users}
-            color="blue"
-          />
-          <StatsCard
-            title="CA Total"
-            value={formatCurrency(clientsData?.ca_total)}
-            subtitle="Revenus clients"
-            icon={DollarSign}
-            color="green"
-          />
-          <StatsCard
-            title="CA Impayé"
-            value={formatCurrency(clientsData?.ca_impaye)}
-            subtitle="Créances clients"
-            icon={TrendingDown}
-            color="orange"
-          />
-          <StatsCard
-            title="Taux de Paiement"
-            value={formatPercent(clientsData?.taux_paiement_moyen)}
-            subtitle="Fiabilité clients"
-            icon={Activity}
-            color="purple"
-          />
-        </div>
-      </section>
-
       {/* Operational KPIs */}
       <section>
         <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">

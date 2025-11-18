@@ -42,7 +42,7 @@ prefect-dbt>=0.4.0prefect-dbt>=0.4.0
 
 # ============= BASE DE DONNÉES =============
 
-psycopg2-binary==2.9.11prefect-sqlalchemy>=0.4.0prefect-sqlalchemy>=0.4.0
+psycopg[binary]>=3.2.0prefect-sqlalchemy>=0.4.0prefect-sqlalchemy>=0.4.0
 
 SQLAlchemy==2.0.44
 

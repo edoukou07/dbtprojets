@@ -41,7 +41,7 @@ performance_collectes as (
         count(case when not c.est_cloturee then 1 end) as collectes_ouvertes,
         
         -- Performance
-        avg(c.taux_recouvrement) as taux_recouvrement_moyen,
+        round(avg(coalesce(c.taux_recouvrement, 0))::numeric, 2) as taux_recouvrement_moyen,
         avg(c.duree_reelle_jours) as duree_moyenne_jours,
         
         -- Volumes financiers
@@ -75,16 +75,16 @@ performance_attributions as (
         t.annee,
         t.trimestre,
         
-        count(*) as nombre_demandes,
-        count(case when a.est_approuve then 1 end) as demandes_approuvees,
-        count(case when a.est_rejete then 1 end) as demandes_rejetees,
-        count(case when a.est_en_attente then 1 end) as demandes_en_attente,
+        count(distinct a.demande_id) as nombre_demandes,
+        count(distinct case when a.statut = 'VALIDE' then a.demande_id end) as demandes_approuvees,
+        count(distinct case when a.statut = 'REJETE' then a.demande_id end) as demandes_rejetees,
+        count(distinct case when a.statut = 'EN_COURS' then a.demande_id end) as demandes_en_attente,
         
         avg(a.delai_traitement_jours) as delai_moyen_traitement,
         
         round(
-            (count(case when a.est_approuve then 1 end)::numeric / 
-             nullif(count(*), 0)::numeric * 100), 
+            (count(distinct case when a.statut = 'VALIDE' then a.demande_id end)::numeric / 
+             nullif(count(distinct a.demande_id), 0)::numeric * 100), 
             2
         ) as taux_approbation_pct,
         
