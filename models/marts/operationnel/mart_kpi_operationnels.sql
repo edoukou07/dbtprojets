@@ -3,8 +3,7 @@
         materialized='table',
         indexes=[
             {'columns': ['annee']},
-            {'columns': ['annee', 'trimestre']},
-            {'columns': ['annee', 'nom_mois']}
+            {'columns': ['annee', 'trimestre']}
         ]
     )
 }}
@@ -32,7 +31,6 @@ performance_collectes as (
     select
         t.annee,
         t.trimestre,
-        t.nom_mois,
         
         -- Volume
         count(*) as nombre_collectes,
@@ -65,8 +63,7 @@ performance_collectes as (
     
     group by 
         t.annee,
-        t.trimestre,
-        t.nom_mois
+        t.trimestre
 ),
 
 performance_attributions as (
@@ -120,7 +117,6 @@ performance_facturation as (
 select
     c.annee,
     c.trimestre,
-    c.nom_mois,
     
     -- Collectes
     c.nombre_collectes,

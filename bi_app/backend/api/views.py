@@ -980,12 +980,18 @@ class MartKPIOperationnelsViewSet(viewsets.ReadOnlyModelViewSet):
     @cache_api_response('operationnel_summary', timeout=300)
     def summary(self, request):
         """Get operational KPIs summary"""
+        from datetime import datetime as dt
         queryset = self.filter_queryset(self.get_queryset())
         
         # Filtres personnalisés
         date_debut = request.query_params.get('date_debut')
         date_fin = request.query_params.get('date_fin')
         zone_id = request.query_params.get('zone_id')
+        
+        # Filtre par année par défaut (année actuelle)
+        current_year = dt.now().year
+        if not date_debut and not date_fin:
+            queryset = queryset.filter(annee=current_year)
         
         # Appliquer les filtres de dates
         if date_debut:

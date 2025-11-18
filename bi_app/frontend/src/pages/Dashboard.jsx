@@ -24,10 +24,10 @@ export default function Dashboard() {
     staleTime: 30000,
   })
 
-  const { data: operationnelData, isLoading: operationnelLoading } = useQuery({
+  const { data: operationnelData, isLoading: operationnelLoading, refetch: refetchOperationnel } = useQuery({
     queryKey: ['operationnel-summary'],
     queryFn: () => operationnelAPI.getSummary().then(res => res.data),
-    staleTime: 30000,
+    staleTime: 5000, // Réduit à 5 secondes pour un refresh plus rapide
   })
 
   const formatCurrency = (value) => {
