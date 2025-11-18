@@ -398,12 +398,19 @@ class MartOccupationZonesViewSet(viewsets.ReadOnlyModelViewSet):
             superficie_totale=Sum('superficie_totale'),
             superficie_disponible=Sum('superficie_disponible'),
             superficie_attribuee=Sum('superficie_attribuee'),
-            taux_occupation_moyen=Avg('taux_occupation_pct'),
             valeur_totale=Sum('valeur_totale_lots'),
         )
         
         # Calculer le nombre de zones
         summary['nombre_zones'] = queryset.count()
+        
+        # Recalculer le taux d'occupation global correctement (pas une moyenne de moyennes)
+        if summary['total_lots']:
+            summary['taux_occupation_moyen'] = round(
+                (summary['lots_attribues'] or 0) / summary['total_lots'] * 100, 2
+            )
+        else:
+            summary['taux_occupation_moyen'] = 0
         
         # Zones critiques (occupation < 50%)
         summary['zones_faible_occupation'] = queryset.filter(
