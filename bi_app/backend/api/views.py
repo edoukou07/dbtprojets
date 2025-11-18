@@ -297,22 +297,29 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         top_ca = list(queryset.values('nom_zone').annotate(
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
-            taux_paiement=Avg('taux_paiement_pct'),
         ).order_by('-ca_total')[:limit])
+        for item in top_ca:
+            item['taux_paiement'] = round((item['ca_paye'] or 0) / (item['ca_total'] or 1) * 100, 2) if item['ca_total'] else 0
         
         # Top zones par taux de paiement
         top_paiement = list(queryset.values('nom_zone').annotate(
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
-            taux_paiement=Avg('taux_paiement_pct'),
-        ).order_by('-taux_paiement')[:limit])
+        ).order_by('nom_zone')[:limit])
+        for item in top_paiement:
+            item['taux_paiement'] = round((item['ca_paye'] or 0) / (item['ca_total'] or 1) * 100, 2) if item['ca_total'] else 0
+        top_paiement = sorted(top_paiement, key=lambda x: x['taux_paiement'], reverse=True)
         
-        # Zones à risque (faible taux de paiement)
+        # Zones a risque (faible taux de paiement)
         zones_risque = list(queryset.values('nom_zone').annotate(
             ca_total=Sum('montant_total_facture'),
+            ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
-            taux_paiement=Avg('taux_paiement_pct'),
-        ).filter(taux_paiement__lt=70).order_by('taux_paiement')[:limit])
+        ).order_by('nom_zone')[:limit])
+        for item in zones_risque:
+            item['taux_paiement'] = round((item['ca_paye'] or 0) / (item['ca_total'] or 1) * 100, 2) if item['ca_total'] else 0
+        zones_risque = [z for z in zones_risque if z['taux_paiement'] < 70]
+        zones_risque = sorted(zones_risque, key=lambda x: x['taux_paiement'])
         
         return Response({
             'top_chiffre_affaires': top_ca,
@@ -326,21 +333,27 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         annee_actuelle = int(request.query_params.get('annee', datetime.now().year))
         annee_precedente = annee_actuelle - 1
         
-        # Données année actuelle
+        # Donnees annee actuelle
         current = self.get_queryset().filter(annee=annee_actuelle).aggregate(
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
-            taux_paiement=Avg('taux_paiement_pct'),
         )
+        if current['ca_total']:
+            current['taux_paiement'] = round((current['ca_paye'] or 0) / current['ca_total'] * 100, 2)
+        else:
+            current['taux_paiement'] = 0
         
-        # Données année précédente
+        # Donnees annee precedente
         previous = self.get_queryset().filter(annee=annee_precedente).aggregate(
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
-            taux_paiement=Avg('taux_paiement_pct'),
         )
+        if previous['ca_total']:
+            previous['taux_paiement'] = round((previous['ca_paye'] or 0) / previous['ca_total'] * 100, 2)
+        else:
+            previous['taux_paiement'] = 0
         
         # Calcul des variations
         comparison = {
