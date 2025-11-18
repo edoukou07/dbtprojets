@@ -6,7 +6,7 @@ sigeti_dwh:
       host: localhost
       port: 5432
       user: postgres
-      password: "{{ env_var('DBT_PASSWORD') }}"
+      password: postgres
       dbname: sigeti_node_db
       schema: dwh
       threads: 4
@@ -19,7 +19,7 @@ sigeti_dwh:
       host: localhost
       port: 5432
       user: postgres
-      password: "{{ env_var('DBT_PASSWORD') }}"
+      password: postgres
       dbname: sigeti_node_db
       schema: dwh
       threads: 8

@@ -43,11 +43,11 @@ final as (
         -- Calculs
         (date_fin_prevue - date_debut) as duree_prevue_jours,
         
-        case 
+        ABS(case 
             when date_cloture is not null 
-            then (date_cloture::date - date_debut)
-            else (current_date - date_debut)
-        end as duree_reelle_jours,
+            then (date_cloture::date - date_debut::date)
+            else (current_date - date_debut::date)
+        end) as duree_reelle_jours,
         
         -- Indicateurs
         factures_generees,
