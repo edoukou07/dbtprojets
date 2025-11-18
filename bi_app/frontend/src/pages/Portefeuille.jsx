@@ -107,7 +107,7 @@ export default function Portefeuille() {
         </Link>
       </div>
 
-      {/* KPIs Principaux */}
+      {/* KPIs Principaux - ONLY unique client metrics */}
       <section>
         <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
           <Users className="w-6 h-6 mr-2 text-blue-600" />
@@ -123,22 +123,6 @@ export default function Portefeuille() {
             loading={summaryLoading}
           />
           <StatsCard
-            title="CA Total"
-            value={formatCurrencyShort(summary?.ca_total) + ' FCFA'}
-            subtitle={formatCurrency(summary?.ca_total)}
-            icon={DollarSign}
-            color="green"
-            loading={summaryLoading}
-          />
-          <StatsCard
-            title="Taux Paiement Moyen"
-            value={formatPercent(summary?.taux_paiement_moyen)}
-            subtitle="Performance globale"
-            icon={Target}
-            color="purple"
-            loading={summaryLoading}
-          />
-          <StatsCard
             title="Créances Totales"
             value={formatCurrencyShort(summary?.ca_impaye) + ' FCFA'}
             subtitle={formatPercent(summary?.taux_impaye_pct) + ' du CA'}
@@ -146,40 +130,18 @@ export default function Portefeuille() {
             color="orange"
             loading={summaryLoading}
           />
-        </div>
-      </section>
-
-      {/* Métriques Complémentaires */}
-      <section>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatsCard
-            title="Total Factures"
-            value={summary?.total_factures?.toLocaleString('fr-FR') || '0'}
-            subtitle="Factures émises"
-            icon={Activity}
-            color="blue"
-            loading={summaryLoading}
-          />
-          <StatsCard
-            title="Lots Attribués"
-            value={summary?.total_lots_attribues?.toLocaleString('fr-FR') || '0'}
-            subtitle={`${summary?.superficie_totale?.toLocaleString('fr-FR') || 0} m²`}
-            icon={MapPin}
-            color="green"
-            loading={summaryLoading}
-          />
           <StatsCard
             title="Délai Moyen Paiement"
             value={`${Math.round(summary?.delai_moyen_paiement || 0)} jours`}
-            subtitle="Moyenne générale"
+            subtitle="Moyenne par client"
             icon={Clock}
-            color="orange"
+            color="purple"
             loading={summaryLoading}
           />
           <StatsCard
             title="Factures en Retard"
             value={summary?.factures_retard_total?.toLocaleString('fr-FR') || '0'}
-            subtitle="Nécessite suivi"
+            subtitle="À relancer"
             icon={XCircle}
             color="red"
             loading={summaryLoading}
