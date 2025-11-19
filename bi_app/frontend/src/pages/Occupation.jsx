@@ -527,34 +527,35 @@ export default function Occupation() {
             </div>
           )}
 
-          {/* Nombre de résultats et contrôles de pagination */}
+          {/* Nombre de résultats et contrôles de pagination - TOP */}
           {!zonesLoading && (
-            <div className="flex items-center justify-between py-4 px-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600 dark:text-gray-400">Afficher:</label>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value))
-                    setCurrentPage(1)
-                  }}
-                  className="px-2 py-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-gray-600 dark:text-gray-400">par page</span>
+            <div className="flex items-center justify-between py-4 px-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Afficher:</label>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value))
+                      setCurrentPage(1)
+                    }}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">par page</span>
+                </div>
               </div>
               
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {sortedZones.length} {sortedZones.length > 1 ? 'zones' : 'zone'}
-              </p>
-              
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                {sortedZones.length > 0 && (
-                  <>Affichage {startIndex + 1}-{Math.min(endIndex, sortedZones.length)} sur {sortedZones.length}</>
+              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                {sortedZones.length > 0 ? (
+                  <>Affichage {startIndex + 1}-{Math.min(endIndex, sortedZones.length)} sur {sortedZones.length} zones</>
+                ) : (
+                  <>0 zones</>
                 )}
               </div>
             </div>
@@ -613,6 +614,15 @@ export default function Occupation() {
                       <div className="flex items-center space-x-1">
                         <span>Disponibles</span>
                         <SortIcon field="lots_disponibles" />
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer hover:bg-blue-800 dark:hover:bg-blue-900 transition-colors"
+                      onClick={() => handleSort('lots_reserves')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Réservés</span>
+                        <SortIcon field="lots_reserves" />
                       </div>
                     </th>
                     <th 
@@ -680,6 +690,9 @@ export default function Occupation() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-400 font-medium">
                           {formatNumber(zone.lots_disponibles)}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 dark:text-orange-400 font-medium">
+                          {formatNumber(zone.lots_reserves)}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                           {formatSuperficie(zone.superficie_totale)}
                         </td>
@@ -724,69 +737,92 @@ export default function Occupation() {
       
       {/* Pagination pour zones */}
       {!zonesLoading && sortedZones.length > 0 && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sm:px-6">
-          <div className="flex justify-between items-center w-full">
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              Page <span className="font-medium">{currentPage}</span> sur{' '}
-              <span className="font-medium">{totalPages}</span>
+        <div className="flex items-center justify-between px-6 py-4 border-t border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Page <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">{currentPage}</span> sur <span className="font-bold">{totalPages}</span>
+          </div>
+          
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === 1
+                  ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-600 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700'
+              }`}
+              title="Première page"
+            >
+              ⬅ Début
+            </button>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors ${
+                currentPage === 1
+                  ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-600 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Précédent
+            </button>
+            
+            {/* Numéros de page */}
+            <div className="flex gap-1">
+              {[...Array(totalPages)].map((_, idx) => {
+                const pageNum = idx + 1
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 dark:bg-blue-700 text-white shadow-md'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                  return <span key={pageNum} className="px-2 py-2 text-gray-500 dark:text-gray-400">…</span>
+                }
+                return null
+              })}
             </div>
             
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className={`px-3 py-1 rounded-lg flex items-center gap-1 ${
-                  currentPage === 1
-                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Précédent
-              </button>
-              
-              {/* Numéros de page */}
-              <div className="flex gap-1">
-                {[...Array(totalPages)].map((_, idx) => {
-                  const pageNum = idx + 1
-                  if (
-                    pageNum === 1 ||
-                    pageNum === totalPages ||
-                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                  ) {
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-1 rounded-lg ${
-                          currentPage === pageNum
-                            ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    )
-                  } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                    return <span key={pageNum} className="px-2 py-1 text-gray-500 dark:text-gray-400">...</span>
-                  }
-                  return null
-                })}
-              </div>
-              
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1 rounded-lg flex items-center gap-1 ${
-                  currentPage === totalPages
-                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                Suivant
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors ${
+                currentPage === totalPages
+                  ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-600 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Suivant
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === totalPages
+                  ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-600 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-700'
+              }`}
+              title="Dernière page"
+            >
+              Fin ➡
+            </button>
           </div>
         </div>
       )}

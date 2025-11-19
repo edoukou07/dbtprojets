@@ -23,6 +23,8 @@ const RISK_COLORS = {
 
 export default function Portefeuille() {
   const [selectedSegment, setSelectedSegment] = useState('all')
+  const [topClientsPage, setTopClientsPage] = useState(0)
+  const itemsPerPage = 10
   
   // Requêtes API
   const { data: summary, isLoading: summaryLoading } = useQuery({
@@ -273,70 +275,111 @@ export default function Portefeuille() {
 
       {/* Comportement de Paiement */}
       {comportement?.par_taux_paiement && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-blue-600" />
-            Analyse du Comportement de Paiement
-          </h4>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Par Taux de Paiement */}
-            <div>
-              <h5 className="text-sm font-medium text-gray-700 mb-3">Distribution par Taux de Paiement</h5>
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+              <Activity className="w-5 h-5 mr-2 text-blue-600" />
+              Analyse du Comportement de Paiement
+            </h4>
+
+            {/* Cartes récapitulatives par catégorie */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {comportement.par_taux_paiement.map((cat, idx) => {
+                const colors = ['bg-green-50 border-green-200', 'bg-blue-50 border-blue-200', 'bg-yellow-50 border-yellow-200', 'bg-red-50 border-red-200'];
+                const icons = ['text-green-600', 'text-blue-600', 'text-yellow-600', 'text-red-600'];
+                
+                return (
+                  <div key={idx} className={`rounded-lg border p-4 ${colors[idx]}`}>
+                    <div className={`text-sm font-medium ${icons[idx]} mb-2`}>{cat.categorie}</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Clients:</span>
+                        <span className="font-semibold text-gray-900">{cat.count || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">CA:</span>
+                        <span className="font-semibold text-gray-900">{formatCurrency(cat.ca_total || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Délai moyen:</span>
+                        <span className="font-semibold text-gray-900">{cat.delai_moyen || 0}j</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Graphe: Nombre de clients par catégorie */}
+            <div className="mb-8">
+              <h5 className="text-sm font-medium text-gray-700 mb-4">Répartition des Clients par Taux de Paiement</h5>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={comportement.par_taux_paiement}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="categorie" angle={-15} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
-                  <YAxis />
+                  <YAxis label={{ value: 'Nombre de clients', angle: -90, position: 'insideLeft' }} />
                   <Tooltip 
-                    formatter={(value, name) => [
-                      name === 'count' ? `${value} clients` : formatCurrency(value),
-                      name === 'count' ? 'Nombre' : 'CA Total'
-                    ]}
+                    formatter={(value) => [`${value} clients`, 'Nombre']}
                   />
-                  <Legend />
-                  <Bar dataKey="count" fill="#0ea5e9" name="Nombre de clients" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="count" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Par Délai de Paiement */}
-            <div>
-              <h5 className="text-sm font-medium text-gray-700 mb-3">Distribution par Délai de Paiement</h5>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={comportement.par_delai_paiement}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="plage_delai" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value, name) => [
-                      name === 'count' ? `${value} clients` : 
-                      name === 'taux_paiement_moyen' ? formatPercent(value) :
-                      formatCurrency(value),
-                      name === 'count' ? 'Nombre' :
-                      name === 'taux_paiement_moyen' ? 'Taux moyen' :
-                      'CA Total'
-                    ]}
-                  />
-                  <Legend />
-                  <Bar dataKey="count" fill="#10b981" name="Nombre de clients" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
           </div>
+
+          {/* Délai de Paiement */}
+          {comportement.par_delai_paiement && comportement.par_delai_paiement.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6">Distribution par Délai de Paiement</h4>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Graphe: Clients par délai */}
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-4">Nombre de Clients</h5>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={comportement.par_delai_paiement}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="plage_delai" angle={-15} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                      <YAxis label={{ value: 'Clients', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip formatter={(value) => [`${value} clients`, 'Nombre']} />
+                      <Bar dataKey="count" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Graphe: Taux moyen par délai */}
+                <div>
+                  <h5 className="text-sm font-medium text-gray-700 mb-4">Taux de Paiement Moyen</h5>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={comportement.par_delai_paiement}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="plage_delai" angle={-15} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                      <YAxis label={{ value: 'Taux (%)', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip formatter={(value) => [formatPercent(value), 'Taux moyen']} />
+                      <Bar dataKey="taux_paiement_moyen" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Top Clients et Clients à Risque */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top 10 Clients */}
+        {/* Top Clients */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h4 className="text-lg font-semibold text-gray-900 flex items-center">
               <Award className="w-5 h-5 mr-2 text-blue-600" />
-              Top 10 Clients par CA
+              Top Clients par CA
             </h4>
+            <p className="text-sm text-gray-600 mt-1">
+              Total: {topClients?.top_chiffre_affaires?.length || 0} clients
+            </p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-96">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -348,11 +391,14 @@ export default function Portefeuille() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {topClients?.top_chiffre_affaires?.slice(0, 10).map((client, index) => (
+                {topClients?.top_chiffre_affaires?.slice(
+                  topClientsPage * itemsPerPage,
+                  (topClientsPage + 1) * itemsPerPage
+                ).map((client, index) => (
                   <tr key={client.entreprise_id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">
-                        {index + 1}
+                        {topClientsPage * itemsPerPage + index + 1}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -385,6 +431,37 @@ export default function Portefeuille() {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Pagination */}
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {topClients?.top_chiffre_affaires?.length > 0 ? (
+                <>
+                  {topClientsPage * itemsPerPage + 1} à{' '}
+                  {Math.min((topClientsPage + 1) * itemsPerPage, topClients.top_chiffre_affaires.length)}{' '}
+                  sur {topClients.top_chiffre_affaires.length}
+                </>
+              ) : (
+                'Aucun client'
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTopClientsPage(Math.max(0, topClientsPage - 1))}
+                disabled={topClientsPage === 0}
+                className="px-3 py-1 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Précédent
+              </button>
+              <button
+                onClick={() => setTopClientsPage(topClientsPage + 1)}
+                disabled={(topClientsPage + 1) * itemsPerPage >= (topClients?.top_chiffre_affaires?.length || 0)}
+                className="px-3 py-1 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Suivant →
+              </button>
+            </div>
           </div>
         </div>
 

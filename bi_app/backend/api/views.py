@@ -4,7 +4,8 @@ API Views for SIGETI BI
 from datetime import datetime
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum, Avg, Count, Q
+from django.db.models import Sum, Avg, Count, Q, F, ExpressionWrapper, IntegerField
+from django.db.models.functions import Extract
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -87,70 +88,96 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         if domaine_id:
             queryset = queryset.filter(domaine_activite_id=domaine_id)
         
-        # Aggregate everything except delai_moyen_paiement — compute that one separately
-        # to avoid issues when the database returns an interval (timedelta) while the
-        # Django model expects a Decimal. Doing it separately makes conversion robust.
-        summary = queryset.aggregate(
+        # To avoid double-counting collectes (which are aggregated by trimestre in the mart),
+        # we need to sum carefully. Get factures data from all rows, but collectes only once per trimestre.
+        
+        # Step 1: Sum all factures (these are by month, so we sum them directly)
+        factures_summary = queryset.aggregate(
             total_factures=Sum('nombre_factures'),
             ca_total=Sum('montant_total_facture'),
             ca_paye=Sum('montant_paye'),
             ca_impaye=Sum('montant_impaye'),
-            # delai_moyen_paiement handled below
-            total_collectes=Sum('nombre_collectes'),
-            montant_recouvre=Sum('montant_paye'),  # FIX: Use montant_paye instead of buggy montant_total_recouvre
+            delai_moyen_paiement=Avg('delai_moyen_paiement'),
+            taux_paiement_pct=Avg('taux_paiement_pct'),
         )
-        # Try to get average of delai_moyen_paiement separately and normalize to days.
-        avg_delai = None
-        try:
-            avg_delai = queryset.aggregate(avg_delai=Avg('delai_moyen_paiement'))['avg_delai']
-        except TypeError:
-            # DB sometimes returns an interval (datetime.timedelta) or other types
-            # that lead Django internals to fail; fall back to manual computation below.
-            avg_delai = None
-
-        # Normalize avg_delai: accept timedelta, Decimal or float
-        if isinstance(avg_delai, (int, float)) and avg_delai is not None:
-            # Assume avg_delai is number of days already (or units used in DWH)
-            summary['delai_moyen_paiement'] = float(avg_delai)
-        elif hasattr(avg_delai, 'total_seconds'):
-            summary['delai_moyen_paiement'] = avg_delai.total_seconds() / 86400
-        elif avg_delai is None:
-            # As a fallback — compute manually using values from the queryset.
-            values = list(queryset.values_list('delai_moyen_paiement', flat=True))
-            # Filter out None
-            values = [v for v in values if v is not None]
-            if values:
-                total_days = 0.0
-                count = 0
-                for v in values:
-                    if hasattr(v, 'total_seconds'):
-                        total_days += v.total_seconds() / 86400
-                    else:
-                        try:
-                            total_days += float(v)
-                        except Exception:
-                            # ignore values we can't parse
-                            continue
-                    count += 1
-                summary['delai_moyen_paiement'] = (total_days / count) if count else 0
-            else:
-                summary['delai_moyen_paiement'] = 0
+        
+        # Step 2: Get collectes data (one row per trimestre to avoid duplication)
+        # Django's .distinct() doesn't work with .values().annotate() properly
+        # So we need to deduplicate manually in Python
+        collectes_raw = queryset.values('trimestre').annotate(
+            total_collectes=Sum('nombre_collectes'),
+            montant_recouvre=Sum('montant_total_recouvre'),
+            montant_a_recouvrer=Sum('montant_total_a_recouvrer'),
+            taux_recouvrement_moyen=Avg('taux_recouvrement_moyen'),
+        )
+        
+        # Deduplicate by trimestre (keep only one row per trimestre)
+        collectes_by_trimestre_dict = {}
+        for row in collectes_raw:
+            trimestre = row['trimestre']
+            if trimestre not in collectes_by_trimestre_dict:
+                collectes_by_trimestre_dict[trimestre] = row
+        
+        collectes_list = list(collectes_by_trimestre_dict.values())
+        
+        # Step 3: Combine the two
+        summary = {
+            'total_factures': factures_summary['total_factures'] or 0,
+            'ca_total': factures_summary['ca_total'] or 0,
+            'ca_paye': factures_summary['ca_paye'] or 0,
+            'ca_impaye': factures_summary['ca_impaye'] or 0,
+            'delai_moyen_paiement': 0,
+            'taux_paiement_pct': 0,
+            'total_collectes': 0,
+            'montant_recouvre': 0,
+            'montant_a_recouvrer': 0,
+            'taux_recouvrement': 0,
+        }
+        
+        # Add collectes data (sum of one row per trimestre, deduplicated)
+        taux_list = []
+        for collectes_row in collectes_list:
+            summary['total_collectes'] += collectes_row['total_collectes'] or 0
+            summary['montant_recouvre'] += collectes_row['montant_recouvre'] or 0
+            summary['montant_a_recouvrer'] += collectes_row['montant_a_recouvrer'] or 0
+            if collectes_row['taux_recouvrement_moyen'] is not None:
+                taux_list.append(collectes_row['taux_recouvrement_moyen'])
+        
+        # Average the taux only if we have data
+        if taux_list:
+            summary['taux_recouvrement'] = sum(taux_list) / len(taux_list)
         else:
-            try:
-                summary['delai_moyen_paiement'] = float(avg_delai)
-            except Exception:
-                summary['delai_moyen_paiement'] = 0
+            summary['taux_recouvrement'] = 0
+        
+        # Handle delai_moyen_paiement - calculer directement à partir des vraies factures
+        from django.db import connection
+        cursor = connection.cursor()
+        
+        cursor.execute("""
+            SELECT ROUND(AVG(EXTRACT(DAY FROM (date_paiement - date_creation))))
+            FROM factures
+            WHERE date_paiement IS NOT NULL
+              AND date_creation IS NOT NULL
+              AND date_paiement >= date_creation
+        """)
+        
+        delai_result = cursor.fetchone()
+        summary['delai_moyen_paiement'] = float(delai_result[0]) if delai_result[0] is not None else 0
         
         # Calculs additionnels
-        # Recalculer le taux de paiement global correctement (pas une moyenne de moyennes)
+        # Recalculer les taux correctement (pas une moyenne de moyennes)
         if summary['ca_total']:
-            summary['taux_paiement_moyen'] = (summary['ca_paye'] or 0) / summary['ca_total'] * 100
-            summary['taux_impaye_pct'] = (summary['ca_impaye'] or 0) / summary['ca_total'] * 100
-            summary['taux_recouvrement_pct'] = (summary['montant_recouvre'] or 0) / summary['ca_impaye'] * 100 if summary['ca_impaye'] else 0
+            summary['taux_paiement_moyen'] = round((summary['ca_paye'] or 0) / summary['ca_total'] * 100, 2)
+            summary['taux_impaye_pct'] = round((summary['ca_impaye'] or 0) / summary['ca_total'] * 100, 2)
         else:
             summary['taux_paiement_moyen'] = 0
             summary['taux_impaye_pct'] = 0
-            summary['taux_recouvrement_pct'] = 0
+        
+        # Taux de recouvrement des collectes
+        if summary['montant_a_recouvrer']:
+            summary['taux_recouvrement_moyen'] = round((summary['montant_recouvre'] or 0) / summary['montant_a_recouvrer'] * 100, 2)
+        else:
+            summary['taux_recouvrement_moyen'] = summary['taux_recouvrement'] or 0  # Fallback to average if no amounts
         
         return Response(summary)
     
@@ -448,6 +475,7 @@ class MartOccupationZonesViewSet(viewsets.ReadOnlyModelViewSet):
             'nombre_total_lots',
             'lots_disponibles',
             'lots_attribues',
+            'lots_reserves',
             'superficie_totale',
             'superficie_disponible',
             'superficie_attribuee',
@@ -596,15 +624,23 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
             total_factures=Sum('nombre_factures'),
             total_lots_attribues=Sum('nombre_lots_attribues'),
             superficie_totale=Sum('superficie_totale_attribuee'),
-            delai_moyen_paiement=Avg('delai_moyen_paiement'),
             factures_retard_total=Sum('nombre_factures_retard'),
         )
         
-        # Convert timedelta to days for delai_moyen_paiement
-        if summary['delai_moyen_paiement'] and isinstance(summary['delai_moyen_paiement'], timedelta):
-            summary['delai_moyen_paiement'] = summary['delai_moyen_paiement'].days
-        elif summary['delai_moyen_paiement'] is None:
-            summary['delai_moyen_paiement'] = 0
+        # Calculate delai_moyen_paiement from actual invoices
+        from django.db import connection
+        cursor = connection.cursor()
+        
+        cursor.execute("""
+            SELECT ROUND(AVG(EXTRACT(DAY FROM (date_paiement - date_creation))))
+            FROM factures
+            WHERE date_paiement IS NOT NULL
+              AND date_creation IS NOT NULL
+              AND date_paiement >= date_creation
+        """)
+        
+        delai_result = cursor.fetchone()
+        summary['delai_moyen_paiement'] = float(delai_result[0]) if delai_result[0] is not None else 0
         
         # Convert Decimal/None to float for safe calculations
         ca_total = float(summary['ca_total'] or 0)
@@ -843,63 +879,49 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
         
         queryset = self.get_queryset()
         
-        # Payment behavior distribution
+        # Payment behavior distribution - using mart data  which already has taux_paiement_pct
         comportement = []
         
-        # Excellent payers (>95%)
-        excellent = queryset.filter(taux_paiement_pct__gte=95).aggregate(
-            count=Count('entreprise_id'),
-            ca_total=Sum('chiffre_affaires_total'),
-            delai_moyen=Avg('delai_moyen_paiement')
-        )
-        # Convert timedelta to days
-        if excellent['delai_moyen'] and isinstance(excellent['delai_moyen'], timedelta):
-            excellent['delai_moyen'] = excellent['delai_moyen'].days
-        excellent['categorie'] = 'Excellent (>95%)'
-        excellent['min_taux'] = 95
-        excellent['max_taux'] = 100
-        comportement.append(excellent)
+        # Define payment categories
+        categories = [
+            {'min': 95, 'max': 100, 'label': 'Excellent (>95%)'},
+            {'min': 80, 'max': 95, 'label': 'Bon (80-95%)'},
+            {'min': 60, 'max': 80, 'label': 'Moyen (60-80%)'},
+            {'min': 0, 'max': 60, 'label': 'Faible (<60%)'}
+        ]
         
-        # Good payers (80-95%)
-        bon = queryset.filter(taux_paiement_pct__gte=80, taux_paiement_pct__lt=95).aggregate(
-            count=Count('entreprise_id'),
-            ca_total=Sum('chiffre_affaires_total'),
-            delai_moyen=Avg('delai_moyen_paiement')
-        )
-        if bon['delai_moyen'] and isinstance(bon['delai_moyen'], timedelta):
-            bon['delai_moyen'] = bon['delai_moyen'].days
-        bon['categorie'] = 'Bon (80-95%)'
-        bon['min_taux'] = 80
-        bon['max_taux'] = 95
-        comportement.append(bon)
+        for cat in categories:
+            # Filter by payment rate from mart (already calculated)
+            filtered_qs = queryset.filter(
+                taux_paiement_pct__gte=cat['min'],
+                taux_paiement_pct__lt=cat['max']
+            )
+            
+            # Aggregate data
+            stats = filtered_qs.aggregate(
+                count=Count('entreprise_id'),
+                ca_total=Sum('chiffre_affaires_total'),
+                delai_moyen=Avg('delai_moyen_paiement')
+            )
+            
+            # Convert timedelta to days if needed
+            delai_moyen = 0
+            if stats['delai_moyen'] and isinstance(stats['delai_moyen'], timedelta):
+                delai_moyen = stats['delai_moyen'].days
+            
+            comportement.append({
+                'count': stats['count'] or 0,
+                'ca_total': float(stats['ca_total'] or 0),
+                'delai_moyen': delai_moyen,
+                'categorie': cat['label'],
+                'min_taux': cat['min'],
+                'max_taux': cat['max']
+            })
         
-        # Average payers (60-80%)
-        moyen = queryset.filter(taux_paiement_pct__gte=60, taux_paiement_pct__lt=80).aggregate(
-            count=Count('entreprise_id'),
-            ca_total=Sum('chiffre_affaires_total'),
-            delai_moyen=Avg('delai_moyen_paiement')
-        )
-        if moyen['delai_moyen'] and isinstance(moyen['delai_moyen'], timedelta):
-            moyen['delai_moyen'] = moyen['delai_moyen'].days
-        moyen['categorie'] = 'Moyen (60-80%)'
-        moyen['min_taux'] = 60
-        moyen['max_taux'] = 80
-        comportement.append(moyen)
+        # Payment delay analysis - using mart data
+        from django.db import connection
+        cursor = connection.cursor()
         
-        # Poor payers (<60%)
-        faible = queryset.filter(taux_paiement_pct__lt=60).aggregate(
-            count=Count('entreprise_id'),
-            ca_total=Sum('chiffre_affaires_total'),
-            delai_moyen=Avg('delai_moyen_paiement')
-        )
-        if faible['delai_moyen'] and isinstance(faible['delai_moyen'], timedelta):
-            faible['delai_moyen'] = faible['delai_moyen'].days
-        faible['categorie'] = 'Faible (<60%)'
-        faible['min_taux'] = 0
-        faible['max_taux'] = 60
-        comportement.append(faible)
-        
-        # Payment delay analysis (using timedelta for filters)
         delai_ranges = [
             {'min': 0, 'max': 30, 'label': '0-30 jours'},
             {'min': 30, 'max': 60, 'label': '30-60 jours'},
@@ -909,15 +931,27 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
         
         par_delai = []
         for range_def in delai_ranges:
-            stats = queryset.filter(
-                delai_moyen_paiement__gte=timedelta(days=range_def['min']),
-                delai_moyen_paiement__lt=timedelta(days=range_def['max'])
-            ).aggregate(
-                count=Count('entreprise_id'),
-                ca_total=Sum('chiffre_affaires_total'),
-                taux_paiement_moyen=Avg('taux_paiement_pct')
-            )
-            stats['plage_delai'] = range_def['label']
+            # Calculate delay in SQL to get accurate data from factures
+            cursor.execute("""
+                SELECT 
+                    COUNT(DISTINCT e.id) as count,
+                    COALESCE(SUM(f.montant_total), 0) as ca_total,
+                    COALESCE(AVG(CASE WHEN f.montant_total > 0 THEN (f.montant_paye / f.montant_total * 100) ELSE 0 END), 0) as taux_paiement_moyen
+                FROM factures f
+                JOIN entreprises e ON f.entreprise_id = e.id
+                WHERE f.date_paiement IS NOT NULL 
+                  AND f.date_creation IS NOT NULL
+                  AND EXTRACT(DAY FROM (f.date_paiement - f.date_creation))::INT >= %s
+                  AND EXTRACT(DAY FROM (f.date_paiement - f.date_creation))::INT < %s
+            """, [range_def['min'], range_def['max']])
+            
+            result = cursor.fetchone()
+            stats = {
+                'count': result[0] or 0,
+                'ca_total': float(result[1]) or 0,
+                'taux_paiement_moyen': float(result[2]) or 0,
+                'plage_delai': range_def['label']
+            }
             par_delai.append(stats)
         
         return Response({
@@ -928,19 +962,41 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def analyse_occupation(self, request):
         """Analyze client occupation of industrial lots"""
+        from django.db import connection
+        cursor = connection.cursor()
+        
         queryset = self.get_queryset()
         
         # Clients with attributions
         avec_lots = queryset.filter(nombre_lots_attribues__gt=0)
         sans_lots = queryset.filter(Q(nombre_lots_attribues=0) | Q(nombre_lots_attribues__isnull=True))
         
-        stats_avec_lots = avec_lots.aggregate(
-            nombre_clients=Count('entreprise_id'),
-            total_lots=Sum('nombre_lots_attribues'),
-            superficie_totale=Sum('superficie_totale_attribuee'),
+        # Calculate superficies from real data (demandes_attribution and lots)
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT da.entreprise_id) as nombre_clients,
+                COUNT(DISTINCT dal.lot_id) as total_lots,
+                COALESCE(SUM(l.superficie), 0) as superficie_totale
+            FROM demandes_attribution da
+            JOIN demande_attribution_lots dal ON da.id = dal.demande_attribution_id
+            JOIN lots l ON dal.lot_id = l.id
+            WHERE da.statut = 'VALIDE'
+        """)
+        
+        result = cursor.fetchone()
+        stats_avec_lots = {
+            'nombre_clients': result[0] or 0,
+            'total_lots': result[1] or 0,
+            'superficie_totale': float(result[2]) or 0,
+        }
+        
+        # Get CA stats from the marts queryset
+        ca_stats = avec_lots.aggregate(
             ca_total=Sum('chiffre_affaires_total'),
             ca_moyen=Avg('chiffre_affaires_total')
         )
+        stats_avec_lots['ca_total'] = float(ca_stats['ca_total'] or 0)
+        stats_avec_lots['ca_moyen'] = float(ca_stats['ca_moyen'] or 0)
         
         stats_sans_lots = sans_lots.aggregate(
             nombre_clients=Count('entreprise_id'),

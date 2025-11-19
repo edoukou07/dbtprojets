@@ -36,7 +36,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',  # JWT token blacklist
     'corsheaders',
     'django_filters',
-    'django_ratelimit',  # Rate limiting
+    # 'django_ratelimit',  # Rate limiting - disabled due to cache backend issues
     
     # Local apps
     'analytics',
@@ -206,8 +206,12 @@ try:
             'TIMEOUT': 300,  # 5 minutes default
         }
     }
-    print("✅ Using Redis cache")
-except (redis.ConnectionError, redis.TimeoutError, Exception) as e:
+    # Avoid Unicode print issues on Windows
+    try:
+        print("Using Redis cache")
+    except:
+        pass
+except Exception as e:
     # Fallback to LocMemCache for development
     CACHES = {
         'default': {
@@ -219,7 +223,11 @@ except (redis.ConnectionError, redis.TimeoutError, Exception) as e:
             }
         }
     }
-    print(f"⚠️  Redis not available ({e}), using in-memory cache for development")
+    # Avoid Unicode print issues on Windows
+    try:
+        print(f"Redis not available, using in-memory cache for development")
+    except:
+        pass
 
 # Cache time-to-live settings (in seconds)
 CACHE_TTL = {

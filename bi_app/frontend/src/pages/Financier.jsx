@@ -35,11 +35,6 @@ export default function Financier() {
     queryFn: () => financierAPI.getTendancesTrimestrielles(selectedYear).then(res => res.data),
   })
 
-  const { data: analyseRecouvrement } = useQuery({
-    queryKey: ['financier-analyse-recouvrement', selectedYear],
-    queryFn: () => financierAPI.getAnalyseRecouvrement(selectedYear).then(res => res.data),
-  })
-
   const { data: topZones } = useQuery({
     queryKey: ['financier-top-zones', selectedYear],
     queryFn: () => financierAPI.getTopZonesPerformance(selectedYear, 5).then(res => res.data),
@@ -161,22 +156,22 @@ export default function Financier() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatsCard
             title="Montant Recouvré"
-            value={formatCurrencyShort(analyseRecouvrement?.montant_recouvre) + ' FCFA'}
-            subtitle={`${analyseRecouvrement?.nombre_collectes || 0} collectes`}
+            value={formatCurrencyShort(summary?.montant_recouvre) + ' FCFA'}
+            subtitle={`${summary?.total_collectes || 0} collectes`}
             icon={TrendingUp}
             color="green"
           />
           <StatsCard
             title="Taux Recouvrement"
-            value={formatPercent(analyseRecouvrement?.taux_recouvrement)}
+            value={formatPercent(summary?.taux_recouvrement_moyen)}
             subtitle="Sur créances totales"
             icon={Target}
             color="blue"
           />
           <StatsCard
-            title="Créances Restantes"
-            value={formatCurrencyShort(analyseRecouvrement?.creances_restantes) + ' FCFA'}
-            subtitle="À recouvrer"
+            title="Montant À Recouvrer"
+            value={formatCurrencyShort(summary?.montant_a_recouvrer) + ' FCFA'}
+            subtitle="Objectif collecte"
             icon={AlertTriangle}
             color="red"
           />
@@ -242,20 +237,34 @@ export default function Financier() {
             Performance Trimestrielle
           </h4>
           {tendancesTrimestrielles && tendancesTrimestrielles.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={tendancesTrimestrielles}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={tendancesTrimestrielles} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nom_trimestre" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Legend />
+                <XAxis 
+                  dataKey="nom_trimestre"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  label={{ value: 'Montant (FCFA)', angle: -90, position: 'insideLeft' }}
+                  tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  formatter={(value) => formatCurrency(value)}
+                  labelFormatter={(label) => `Montant: ${label}`}
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+                />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 <Bar dataKey="ca_facture" fill="#0ea5e9" name="CA Facturé" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="ca_paye" fill="#10b981" name="CA Payé" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="ca_impaye" fill="#f59e0b" name="Créances" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-300 flex items-center justify-center text-gray-500">
+            <div className="h-400 flex items-center justify-center text-gray-500">
               Aucune donnée disponible
             </div>
           )}
@@ -357,75 +366,7 @@ export default function Financier() {
       </div>
 
       {/* Recouvrement par Zone */}
-      {analyseRecouvrement?.par_zone && analyseRecouvrement.par_zone.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <PieChartIcon className="w-5 h-5 mr-2 text-blue-600" />
-              Performance de Recouvrement par Zone
-            </h4>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Zone
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Créances
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Recouvré
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Taux Recouvrement
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Progression
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {analyseRecouvrement.par_zone.slice(0, 10).map((zone, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {zone.nom_zone}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {formatCurrency(zone.creances)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                      {formatCurrency(zone.recouvre)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
-                      <span className={`${
-                        zone.taux_recouvrement >= 70 ? 'text-green-600' :
-                        zone.taux_recouvrement >= 40 ? 'text-orange-600' :
-                        'text-red-600'
-                      }`}>
-                        {formatPercent(zone.taux_recouvrement)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${
-                            zone.taux_recouvrement >= 70 ? 'bg-green-500' :
-                            zone.taux_recouvrement >= 40 ? 'bg-orange-500' :
-                            'bg-red-500'
-                          }`}
-                          style={{ width: `${Math.min(zone.taux_recouvrement || 0, 100)}%` }}
-                        ></div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }

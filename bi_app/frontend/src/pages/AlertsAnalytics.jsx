@@ -203,7 +203,17 @@ export default function AlertsAnalytics() {
       const response = await axios.get(`${API_URL}/alerts/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      return response.data
+      console.log('🚨 Réponse API alertes complète:', response.data)
+      
+      // Gérer les deux formats: tableau direct ou structure paginée
+      const alertsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data?.results || response.data?.data || []
+      
+      console.log('🚨 Alertes extraites:', alertsData)
+      console.log('🚨 Nombre d\'alertes:', alertsData.length)
+      
+      return alertsData
     }
   })
   
@@ -593,6 +603,7 @@ export default function AlertsAnalytics() {
           <Clock className="w-6 h-6 text-blue-600" />
           Liste Détaillée des Alertes
         </h2>
+        {console.log('DEBUG - Rendering alerts:', { alerts, type: typeof alerts, isArray: Array.isArray(alerts), length: alerts?.length })}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -615,38 +626,59 @@ export default function AlertsAnalytics() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {alerts && Array.isArray(alerts) && alerts.slice(0, 10).map((alert) => (
-                <tr key={alert.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                      alert.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                      alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {alert.severity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{alert.title}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-500 max-w-xs truncate">{alert.message}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(alert.created_at).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      alert.status === 'active' ? 'bg-red-100 text-red-800' :
-                      alert.status === 'acknowledged' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {alert.status}
-                    </span>
+              {alertsLoading ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-sm text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Clock className="w-5 h-5 text-gray-400 animate-spin" />
+                      Chargement des alertes...
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : alerts && Array.isArray(alerts) && alerts.length > 0 ? (
+                alerts.slice(0, 10).map((alert) => (
+                  <tr key={alert.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                        alert.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                        alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        alert.severity === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {alert.severity}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{alert.title}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-500 max-w-xs truncate">{alert.message}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(alert.created_at).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        alert.status === 'active' ? 'bg-red-100 text-red-800' :
+                        alert.status === 'acknowledged' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {alert.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-sm text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-gray-400" />
+                      Aucune alerte pour le moment
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

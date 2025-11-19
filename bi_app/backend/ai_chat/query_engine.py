@@ -200,7 +200,8 @@ class QueryPattern:
     
     def __init__(self, patterns: List[str], sql_template: str, description: str, 
                  params_extractor=None, category: str = "general"):
-        self.patterns = [p.lower() for p in patterns]
+        # Normaliser les patterns pour qu'ils correspondent aux questions normalisées
+        self.patterns = [TextNormalizer.normalize(p) for p in patterns]
         self.sql_template = sql_template
         self.description = description
         self.params_extractor = params_extractor
@@ -440,6 +441,24 @@ class RuleBasedQueryEngine:
                     LIMIT 20
                 """,
                 description="Clients à risque",
+                category="clients"
+            ),
+            
+            QueryPattern(
+                patterns=["affiche clients", "liste clients", "tous les clients", "les clients", "affiche des clients"],
+                sql_template="""
+                    SELECT raison_sociale,
+                           secteur_activite,
+                           chiffre_affaires_total,
+                           nombre_lots_attribues,
+                           taux_paiement_pct,
+                           segment_client,
+                           niveau_risque
+                    FROM dwh_marts_clients.mart_portefeuille_clients
+                    ORDER BY chiffre_affaires_total DESC NULLS LAST
+                    LIMIT 50
+                """,
+                description="Liste complète des clients",
                 category="clients"
             ),
             
