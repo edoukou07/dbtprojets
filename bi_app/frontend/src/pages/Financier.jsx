@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { financierAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
+import ExportButton from '../components/ExportButton'
 
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
 
@@ -66,9 +67,66 @@ export default function Financier() {
     return value.toFixed(1) + '%'
   }
 
+  // Préparer données pour export
+  const prepareExportData = () => {
+    const data = [];
+    
+    if (summary) {
+      data.push({
+        'Métrique': 'CA Facturé',
+        'Valeur': summary.ca_total,
+        'Format': formatCurrency(summary.ca_total)
+      });
+      data.push({
+        'Métrique': 'CA Payé',
+        'Valeur': summary.ca_paye,
+        'Format': formatCurrency(summary.ca_paye)
+      });
+      data.push({
+        'Métrique': 'Créances',
+        'Valeur': summary.ca_impaye,
+        'Format': formatCurrency(summary.ca_impaye)
+      });
+      data.push({
+        'Métrique': 'Taux de Paiement',
+        'Valeur': summary.taux_paiement_moyen,
+        'Format': formatPercent(summary.taux_paiement_moyen)
+      });
+    }
+
+    if (topZones?.top_chiffre_affaires) {
+      data.push({ 'Métrique': '', 'Valeur': '', 'Format': '' });
+      data.push({ 'Métrique': 'TOP ZONES PAR CA', 'Valeur': '', 'Format': '' });
+      topZones.top_chiffre_affaires.forEach((zone, index) => {
+        data.push({
+          'Métrique': `${index + 1}. ${zone.nom_zone}`,
+          'Valeur': zone.ca_total,
+          'Format': formatCurrency(zone.ca_total) + ` - Taux: ${formatPercent(zone.taux_paiement)}`
+        });
+      });
+    }
+
+    return data;
+  };
+
+  // Pas besoin de fonctions séparées - ExportButton gère tout
+
   return (
     <div className="space-y-8">
-      {/* Header avec sélection année */}
+      {/* Header Principal */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Performance Financière</h2>
+        <ExportButton 
+          data={prepareExportData()} 
+          filename={`financier_${selectedYear}`}
+          title={`Dashboard Financier - ${selectedYear}`}
+          showPDF={true}
+          showExcel={true}
+          showCSV={true}
+        />
+      </div>
+
+      {/* Contrôles et Comparaison */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Calendar className="w-5 h-5 text-gray-400" />
