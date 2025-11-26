@@ -47,12 +47,16 @@ from .alert_config_views import (
     AlertThresholdsView,
     AlertThresholdsResetView,
 )
+from .compliance_views import ComplianceViewSet
+from .compliance_compliance_views import ComplianceComplianceViewSet
 
 router = DefaultRouter()
 router.register(r'financier', MartPerformanceFinanciereViewSet, basename='financier')
 router.register(r'occupation', MartOccupationZonesViewSet, basename='occupation')
 router.register(r'clients', MartPortefeuilleClientsViewSet, basename='clients')
 router.register(r'operationnel', MartKPIOperationnelsViewSet, basename='operationnel')
+router.register(r'compliance', ComplianceViewSet, basename='compliance')
+router.register(r'compliance-compliance', ComplianceComplianceViewSet, basename='compliance-compliance')
 router.register(r'alerts', AlertViewSet, basename='alerts')
 router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thresholds')
 router.register(r'reports', ReportScheduleViewSet, basename='reports')

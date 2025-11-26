@@ -11,12 +11,15 @@ zones as (
     select * from "sigeti_node_db"."dwh_dimensions"."dim_zones_industrielles"
 ),
 
-entreprises as (
-    select * from "sigeti_node_db"."dwh_dimensions"."dim_entreprises"
-),
-
 attributions as (
     select * from "sigeti_node_db"."dwh_facts"."fait_attributions"
+),
+
+-- Vérifier les attributions approuvées directement depuis la source
+demandes_attribution_source as (
+    select distinct lot_id
+    from "sigeti_node_db"."public"."demandes_attribution"
+    where statut = 'VALIDE'
 ),
 
 occupation_lots as (
@@ -27,17 +30,17 @@ occupation_lots as (
         -- Comptage des lots
         count(*) as nombre_total_lots,
         count(case when l.est_disponible then 1 end) as lots_disponibles,
-        count(case when l.est_attribue then 1 end) as lots_attribues,
-        count(case when not l.est_attribue and not l.est_disponible then 1 end) as lots_reserves,
+        count(case when da.lot_id is not null then 1 end) as lots_attribues,
+        count(case when not l.est_disponible and da.lot_id is null then 1 end) as lots_reserves,
         
         -- Surfaces
         sum(l.superficie) as superficie_totale,
         sum(case when l.est_disponible then l.superficie else 0 end) as superficie_disponible,
-        sum(case when l.est_attribue then l.superficie else 0 end) as superficie_attribuee,
+        sum(case when da.lot_id is not null then l.superficie else 0 end) as superficie_attribuee,
         
         -- Taux d'occupation
         round(
-            (count(case when l.est_attribue then 1 end)::numeric / 
+            (count(case when da.lot_id is not null then 1 end)::numeric / 
              nullif(count(*), 0)::numeric * 100), 
             2
         ) as taux_occupation_pct,
@@ -56,6 +59,7 @@ occupation_lots as (
         
     from lots l
     left join zones z on l.zone_industrielle_id = z.zone_id
+    left join demandes_attribution_source da on l.lot_id = da.lot_id
     
     group by 
         z.zone_id,

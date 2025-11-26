@@ -1,0 +1,191 @@
+# Prefect Deployment Configuration - YAML Format
+# Defines incremental refresh schedules and execution parameters
+
+version: 1
+
+# Global settings
+settings:
+  flow_run_concurrency: 1
+  task_run_concurrency: 8
+  timeout_minutes: 15
+  retry_attempts: 2
+
+
+# Deployments
+deployments:
+  
+  # Daily Incremental Refresh
+  - name: daily-incremental-refresh
+    flow: incremental_refresh_flow
+    description: Daily incremental refresh of fact tables
+    tags:
+      - production
+      - incremental
+      - daily
+    schedule:
+      type: cron
+      cron: "0 2 * * *"  # 2 AM UTC daily
+      timezone: UTC
+    parameters:
+      incremental_since: "{{ now - 1 day }}"
+      models:
+        - fait_attributions
+        - fait_collectes
+        - fait_conventions
+        - fait_factures
+        - fait_indemnisations
+        - fait_paiements
+    work_queue: default
+    infrastructure:
+      type: process
+      env:
+        PREFECT_LOGGING_LEVEL: INFO
+        DBT_THREADS: "8"
+        DBT_PROFILES_DIR: "./"
+    notifications:
+      - type: email
+        on:
+          - FAILED
+        recipients:
+          - admin@sigeti.local
+      - type: slack
+        on:
+          - FAILED
+          - COMPLETED
+        channel: "#dbt-alerts"
+
+
+  # Weekly Full Refresh
+  - name: weekly-full-refresh
+    flow: full_refresh_flow
+    description: Weekly full refresh of all models with validation
+    tags:
+      - production
+      - full-refresh
+      - weekly
+    schedule:
+      type: cron
+      cron: "0 3 * * 0"  # 3 AM UTC on Sundays
+      timezone: UTC
+    parameters:
+      run_tests: true
+      generate_docs: true
+    work_queue: default
+    infrastructure:
+      type: process
+      env:
+        PREFECT_LOGGING_LEVEL: INFO
+        DBT_THREADS: "8"
+        DBT_PROFILES_DIR: "./"
+    notifications:
+      - type: email
+        on:
+          - FAILED
+          - COMPLETED
+        recipients:
+          - admin@sigeti.local
+
+
+# Monitoring and Alerting
+monitoring:
+  enabled: true
+  
+  # Track execution metrics
+  metrics:
+    - execution_time
+    - rows_processed
+    - test_results
+    - data_freshness
+  
+  # Alert conditions
+  alerts:
+    - name: incremental_failure
+      condition: "flow_run.state == 'FAILED'"
+      action: notify_slack
+      threshold: 1
+    
+    - name: high_execution_time
+      condition: "execution_time > 600"  # 10 minutes
+      action: notify_email
+      threshold: 1
+    
+    - name: test_failures
+      condition: "failed_tests > 0"
+      action: notify_slack
+      threshold: 1
+    
+    - name: data_staleness
+      condition: "last_update_age > 25 hours"  # More than 25 hours old
+      action: notify_critical
+      threshold: 1
+
+
+# Data Quality Checks
+data_quality:
+  enabled: true
+  
+  incremental_models:
+    - fait_attributions:
+        key_columns: [demande_id, zone_id]
+        min_rows: 0
+        max_rows: 1000000
+        expected_lag_hours: 2
+    
+    - fait_collectes:
+        key_columns: [collecte_id]
+        min_rows: 0
+        max_rows: 500000
+        expected_lag_hours: 2
+    
+    - fait_conventions:
+        key_columns: [convention_id]
+        min_rows: 0
+        max_rows: 100000
+        expected_lag_hours: 2
+    
+    - fait_factures:
+        key_columns: [facture_id]
+        min_rows: 0
+        max_rows: 500000
+        expected_lag_hours: 2
+    
+    - fait_indemnisations:
+        key_columns: [indemnisation_id]
+        min_rows: 0
+        max_rows: 100000
+        expected_lag_hours: 2
+    
+    - fait_paiements:
+        key_columns: [paiement_id]
+        min_rows: 0
+        max_rows: 500000
+        expected_lag_hours: 2
+
+
+# Resource Configuration
+resources:
+  cpu: 2
+  memory_gb: 4
+  disk_gb: 10
+  timeout_minutes: 15
+  max_retries: 2
+
+
+# Logging and Auditing
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  persist_logs: true
+  retention_days: 90
+  
+  # Log destinations
+  handlers:
+    - type: file
+      path: ./logs/prefect_incremental.log
+    
+    - type: database
+      table: dbt_refresh_log
+      connection:
+        host: localhost
+        database: sigeti_node_db
+        user: sigeti_node_user

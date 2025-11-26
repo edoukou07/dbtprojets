@@ -73,3 +73,16 @@ sources:
         
       - name: purges
         description: "Opérations de purge/libération de terrain"
+        
+      - name: agents
+        description: "Agents du système"
+        
+      - name: infractions
+        description: "Infractions (workflow_infractions)"
+        identifier: "workflow_infractions"
+        
+      - name: etapes_suivi_implantation
+        description: "Étapes de suivi d'implantation des entreprises"
+        
+      - name: collecte_agents
+        description: "Collectes de données par agent"

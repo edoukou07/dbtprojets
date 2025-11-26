@@ -1,23 +1,80 @@
-# Guide Prefect - Pipeline DBT SIGETI
+# Prefect Deployment - Quick Start Guide
 
-## 📋 Table des matières
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture](#architecture)
-3. [Démarrage rapide](#démarrage-rapide)
-4. [Configuration détaillée](#configuration-détaillée)
-5. [Commandes utiles](#commandes-utiles)
-6. [Dépannage](#dépannage)
-7. [Dashboard](#dashboard)
+## 🚀 Quick Start (5 minutes)
+
+### 1. Prerequisites
+
+```bash
+# Verify Python 3.9+ installed
+python --version
+
+# Verify PostgreSQL running
+psql -h localhost -U sigeti_node_user -d sigeti_node_db -c "SELECT 1"
+
+# Activate virtual environment
+cd C:\Users\hynco\Desktop\DWH_SIG
+venv\Scripts\Activate.ps1
+```
+
+### 2. Install Prefect
+
+```bash
+pip install prefect>=2.0.0 psycopg2-binary click pyyaml python-dotenv
+```
+
+### 3. Start Prefect Server
+
+```bash
+# In one terminal, start Prefect server
+prefect server start
+
+# Takes ~30 seconds to start
+# Once running, access dashboard at http://localhost:4200
+```
+
+### 4. Deploy Flows
+
+```bash
+# In another terminal, from workspace root
+cd C:\Users\hynco\Desktop\DWH_SIG
+
+# Run startup script for guided setup
+python prefect/deployments/startup.py
+
+# Or manual steps:
+python prefect/manage_deployments.py setup
+```
+
+### 5. Start Agent
+
+```bash
+# In third terminal
+prefect agent start --work-queue default
+
+# Agent will execute flows on schedule
+```
+
+### 6. Monitor Dashboard
+
+```bash
+# In fourth terminal (or browser)
+python prefect/manage_deployments.py dashboard
+
+# Or visit: http://localhost:4200
+```
 
 ---
 
-## 🎯 Vue d'ensemble
+## 📅 Scheduled Runs
 
-Ce projet utilise **Prefect 3.x** pour orchestrer et planifier l'exécution du pipeline DBT SIGETI.
+| Schedule | Time | What Runs | Duration |
+|----------|------|-----------|----------|
+| **Daily Incremental** | 2:00 AM UTC | 6 incremental fact tables | ~3-5 min |
+| **Weekly Full** | Sunday 3:00 AM UTC | All 37 models + tests | ~10-15 min |
 
-**Caractéristiques :**
-- ✅ Exécution automatique toutes les **10 minutes**
-- ✅ Monitorage en temps réel via dashboard web
+**⏰ TIP**: Convert UTC to your timezone:
+- 2:00 AM UTC = 9:00 PM (EST) / 6:00 PM (PST) previous day
+- Adjust schedule in `schedule_config.yaml` if needed
 - ✅ Stockage des métadonnées dans **PostgreSQL**
 - ✅ Logs détaillés et traçabilité complète
 - ✅ Gestion des retries automatiques

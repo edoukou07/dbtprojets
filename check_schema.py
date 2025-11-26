@@ -1,35 +1,33 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import os
-import sys
-import django
+import psycopg2
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'bi_app', 'backend'))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sigeti_bi.settings')
-django.setup()
+conn = psycopg2.connect(
+    host='localhost', 
+    port=5432, 
+    database='sigeti_node_db', 
+    user='postgres', 
+    password='postgres'
+)
+cur = conn.cursor()
 
-from django.db import connection
-cursor = connection.cursor()
+# Check all schemas and tables with "mart" in name
+cur.execute("""
+    SELECT table_schema, table_name FROM information_schema.tables 
+    WHERE table_name LIKE '%mart%' OR table_name LIKE '%conformite%'
+    ORDER BY table_schema, table_name
+""")
+print("Tables with 'mart' or 'conformite' in name:")
+for row in cur.fetchall():
+    print(f'  {row[0]}.{row[1]}')
 
-# Check the schema of lots table
-print("=== Checking lots table schema ===")
-cursor.execute('''
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_name = 'lots'
-ORDER BY ordinal_position
-''')
-columns = cursor.fetchall()
-for col, dtype in columns:
-    print(f"  {col}: {dtype}")
+# Check if marts_operationnel schema exists
+cur.execute("""
+    SELECT schema_name FROM information_schema.schemata 
+    WHERE schema_name = 'marts_operationnel'
+""")
+if cur.fetchone():
+    print("\n✓ Schema 'marts_operationnel' EXISTS")
+else:
+    print("\n✗ Schema 'marts_operationnel' DOES NOT EXIST")
 
-print("\n=== Checking zones_industrielles table schema ===")
-cursor.execute('''
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_name = 'zones_industrielles'
-ORDER BY ordinal_position
-''')
-columns = cursor.fetchall()
-for col, dtype in columns:
-    print(f"  {col}: {dtype}")
+conn.close()
+

@@ -28,6 +28,8 @@ export default function Sidebar() {
     { name: 'Occupation Zones', path: '/occupation', icon: Building2, id: 'occupation' },
     { name: 'Portefeuille Clients', path: '/portefeuille', icon: Users, id: 'portefeuille' },
     { name: 'KPI Opérationnels', path: '/operationnel', icon: Activity, id: 'operationnel' },
+    { name: 'Conformité & Infractions', path: '/compliance', icon: Shield, id: 'compliance' },
+    { name: 'Tableau de Conformité', path: '/compliance-compliance', icon: Shield, id: 'compliance-compliance' },
     { name: 'Assistant IA', path: '/chatbot', icon: Bot, id: 'chatbot' },
   ]
 
