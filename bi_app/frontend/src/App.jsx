@@ -14,6 +14,7 @@ import Portefeuille from './pages/Portefeuille'
 import Operationnel from './pages/Operationnel'
 import ComplianceInfractions from './pages/ComplianceInfractions'
 import ComplianceCompliance from './pages/ComplianceCompliance'
+import RH from './pages/RH'
 import TestMap from './pages/TestMap'
 import ChatBot from './components/ChatBot'
 import AlertsConfig from './components/AlertsConfig'
@@ -72,6 +73,11 @@ function App() {
           <Route path="compliance-compliance" element={
             <ProtectedDashboardRoute dashboard="compliance-compliance">
               <ComplianceCompliance />
+            </ProtectedDashboardRoute>
+          } />
+          <Route path="rh" element={
+            <ProtectedDashboardRoute dashboard="rh">
+              <RH />
             </ProtectedDashboardRoute>
           } />
           <Route path="chatbot" element={

@@ -49,6 +49,7 @@ from .alert_config_views import (
 )
 from .compliance_views import ComplianceViewSet
 from .compliance_compliance_views import ComplianceComplianceViewSet
+from .rh_views import RhViewSet
 
 router = DefaultRouter()
 router.register(r'financier', MartPerformanceFinanciereViewSet, basename='financier')
@@ -57,6 +58,7 @@ router.register(r'clients', MartPortefeuilleClientsViewSet, basename='clients')
 router.register(r'operationnel', MartKPIOperationnelsViewSet, basename='operationnel')
 router.register(r'compliance', ComplianceViewSet, basename='compliance')
 router.register(r'compliance-compliance', ComplianceComplianceViewSet, basename='compliance-compliance')
+router.register(r'rh', RhViewSet, basename='rh')
 router.register(r'alerts', AlertViewSet, basename='alerts')
 router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thresholds')
 router.register(r'reports', ReportScheduleViewSet, basename='reports')
