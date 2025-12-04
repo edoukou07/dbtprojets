@@ -312,3 +312,114 @@ class UserDashboardPermission(models.Model):
     
     def __str__(self):
         return f"{self.user.username} -> {self.get_dashboard_display()}"
+
+
+class MartImplantationSuivi(models.Model):
+    """Mart Implantation - Suivi des implantations par zone"""
+    
+    zone_id = models.IntegerField()
+    nom_zone = models.CharField(max_length=255, null=True, blank=True)
+    annee = models.IntegerField()
+    mois = models.IntegerField()
+    annee_mois = models.CharField(max_length=10, null=True, blank=True)
+    
+    # Volumes
+    nombre_implantations = models.IntegerField(null=True, blank=True)
+    nombre_etapes = models.IntegerField(null=True, blank=True)
+    
+    # Statuts
+    etapes_en_attente = models.IntegerField(null=True, blank=True)
+    etapes_en_cours = models.IntegerField(null=True, blank=True)
+    etapes_terminees = models.IntegerField(null=True, blank=True)
+    etapes_en_retard = models.IntegerField(null=True, blank=True)
+    etapes_bloquees = models.IntegerField(null=True, blank=True)
+    
+    # Durées
+    duree_moyenne_jours = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    duree_max_jours = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Pourcentages
+    taux_completude_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    pct_en_retard = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    class Meta:
+        managed = False
+        db_table = '"dwh_marts_operationnel"."mart_implantation_suivi"'
+        ordering = ['-annee', '-mois']
+
+
+class MartIndemnisations(models.Model):
+    """Mart Indemnisations - Suivi des indemnisations par zone et statut"""
+    
+    zone_id = models.IntegerField()
+    zone_name = models.CharField(max_length=255, null=True, blank=True)
+    annee = models.IntegerField()
+    mois = models.IntegerField()
+    annee_mois = models.CharField(max_length=10, null=True, blank=True)
+    statut = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Volumes
+    nombre_indemnisations = models.IntegerField(null=True, blank=True)
+    nombre_beneficiaires = models.IntegerField(null=True, blank=True)
+    
+    # Montants
+    montant_total_restant = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    montant_moyen = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    
+    class Meta:
+        managed = False
+        db_table = '"dwh_marts_financier"."mart_indemnisations"'
+        ordering = ['-annee', '-mois']
+
+
+class MartEmploisCrees(models.Model):
+    """Mart Emplois Créés - Suivi des emplois créés par zone et type"""
+    
+    zone_id = models.IntegerField()
+    zone_name = models.CharField(max_length=255, null=True, blank=True)
+    annee = models.IntegerField()
+    mois = models.IntegerField()
+    type_demande = models.CharField(max_length=100, null=True, blank=True)
+    statut = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Volumes
+    nombre_demandes = models.IntegerField(null=True, blank=True)
+    total_emplois = models.IntegerField(null=True, blank=True)
+    total_emplois_expatries = models.IntegerField(null=True, blank=True)
+    total_emplois_nationaux = models.IntegerField(null=True, blank=True)
+    
+    # Moyennes
+    avg_emplois_par_demande = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Pourcentages
+    pct_expatries = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    pct_nationaux = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    class Meta:
+        managed = False
+        db_table = '"dwh_marts_operationnel"."mart_emplois_crees"'
+        ordering = ['-annee', '-mois']
+
+
+class MartCreancesAgees(models.Model):
+    """Mart Créances Âgées - Suivi des factures impayées par ancienneté"""
+    
+    tranche_anciennete = models.CharField(max_length=50)
+    niveau_risque = models.CharField(max_length=50)
+    
+    # Volumes
+    nombre_factures = models.IntegerField(null=True, blank=True)
+    nombre_entreprises = models.IntegerField(null=True, blank=True)
+    
+    # Montants
+    montant_total_factures = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    montant_moyen = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    
+    # Délais
+    delai_moyen_jours = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    delai_max_jours = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    class Meta:
+        managed = False
+        db_table = '"dwh_marts_financier"."mart_creances_agees"'
+        ordering = ['tranche_anciennete', 'niveau_risque']

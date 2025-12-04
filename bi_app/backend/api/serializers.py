@@ -10,7 +10,11 @@ from analytics.models import (
     Alert,
     AlertThreshold,
     UserDashboardPermission,
-    ReportSchedule
+    ReportSchedule,
+    MartImplantationSuivi,
+    MartIndemnisations,
+    MartEmploisCrees,
+    MartCreancesAgees
 )
 
 
@@ -134,3 +138,27 @@ class UserSerializer(serializers.ModelSerializer):
                 )
         
         return instance
+
+
+class MartImplantationSuiviSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MartImplantationSuivi
+        fields = '__all__'
+
+
+class MartIndemnisationsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MartIndemnisations
+        fields = '__all__'
+
+
+class MartEmploisCreesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MartEmploisCrees
+        fields = '__all__'
+
+
+class MartCreancesAgeesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MartCreancesAgees
+        fields = '__all__'

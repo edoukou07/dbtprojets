@@ -14,6 +14,10 @@ from .views import (
     AlertThresholdViewSet,
     ReportScheduleViewSet,
     UserViewSet,
+    MartImplantationSuiviViewSet,
+    MartIndemnisationsViewSet,
+    MartEmploisCreesViewSet,
+    MartCreancesAgeesViewSet,
     login_view,
     logout_view,
     current_user_view,
@@ -59,6 +63,10 @@ router.register(r'operationnel', MartKPIOperationnelsViewSet, basename='operatio
 router.register(r'compliance', ComplianceViewSet, basename='compliance')
 router.register(r'compliance-compliance', ComplianceComplianceViewSet, basename='compliance-compliance')
 router.register(r'rh', RhViewSet, basename='rh')
+router.register(r'implantation-suivi', MartImplantationSuiviViewSet, basename='implantation-suivi')
+router.register(r'indemnisations', MartIndemnisationsViewSet, basename='indemnisations')
+router.register(r'emplois-crees', MartEmploisCreesViewSet, basename='emplois-crees')
+router.register(r'creances-agees', MartCreancesAgeesViewSet, basename='creances-agees')
 router.register(r'alerts', AlertViewSet, basename='alerts')
 router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thresholds')
 router.register(r'reports', ReportScheduleViewSet, basename='reports')

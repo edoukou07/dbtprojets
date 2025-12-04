@@ -15,7 +15,11 @@ from analytics.models import (
     MartPortefeuilleClients,
     MartKPIOperationnels,
     Alert,
-    AlertThreshold
+    AlertThreshold,
+    MartImplantationSuivi,
+    MartIndemnisations,
+    MartEmploisCrees,
+    MartCreancesAgees
 )
 from .serializers import (
     MartPerformanceFinanciereSerializer,
@@ -23,7 +27,11 @@ from .serializers import (
     MartPortefeuilleClientsSerializer,
     MartKPIOperationnelsSerializer,
     AlertSerializer,
-    AlertThresholdSerializer
+    AlertThresholdSerializer,
+    MartImplantationSuiviSerializer,
+    MartIndemnisationsSerializer,
+    MartEmploisCreesSerializer,
+    MartCreancesAgeesSerializer
 )
 from .serializers import ReportScheduleSerializer
 from analytics.models import ReportSchedule
@@ -1792,3 +1800,137 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 
+
+class MartImplantationSuiviViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Implantation Suivi Mart
+    
+    Filters available:
+    - zone_id: Filter by zone ID
+    - annee: Filter by year
+    - mois: Filter by month
+    """
+    queryset = MartImplantationSuivi.objects.all()
+    serializer_class = MartImplantationSuiviSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['zone_id', 'annee', 'mois']
+    ordering_fields = ['annee', 'mois', 'nombre_implantations']
+    ordering = ['-annee', '-mois']
+    
+    @action(detail=False, methods=['get'])
+    @cache_api_response('implantation_summary', timeout=300)
+    def summary(self, request):
+        """Get implantation summary statistics"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        summary_data = queryset.aggregate(
+            total_implantations=Sum('nombre_implantations'),
+            total_etapes=Sum('nombre_etapes'),
+            total_terminees=Sum('etapes_terminees'),
+            total_en_retard=Sum('etapes_en_retard'),
+            avg_completude=Avg('taux_completude_pct'),
+            zones_count=Count('zone_id', distinct=True)
+        )
+        
+        return Response(summary_data)
+
+
+class MartIndemnisationsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Indemnisations Mart
+    
+    Filters available:
+    - zone_id: Filter by zone ID
+    - annee: Filter by year
+    - mois: Filter by month
+    - statut: Filter by status
+    """
+    queryset = MartIndemnisations.objects.all()
+    serializer_class = MartIndemnisationsSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['zone_id', 'annee', 'mois', 'statut']
+    ordering_fields = ['annee', 'mois', 'nombre_indemnisations', 'montant_total_restant']
+    ordering = ['-annee', '-mois']
+    
+    @action(detail=False, methods=['get'])
+    @cache_api_response('indemnisations_summary', timeout=300)
+    def summary(self, request):
+        """Get indemnisations summary statistics"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        summary_data = queryset.aggregate(
+            total_indemnisations=Sum('nombre_indemnisations'),
+            total_beneficiaires=Sum('nombre_beneficiaires'),
+            total_montant_restant=Sum('montant_total_restant'),
+            montant_moyen=Avg('montant_moyen'),
+            zones_count=Count('zone_id', distinct=True)
+        )
+        
+        return Response(summary_data)
+
+
+class MartEmploisCreesViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Emplois Créés Mart
+    
+    Filters available:
+    - zone_id: Filter by zone ID
+    - annee: Filter by year
+    - mois: Filter by month
+    - type_demande: Filter by demand type
+    - statut: Filter by status
+    """
+    queryset = MartEmploisCrees.objects.all()
+    serializer_class = MartEmploisCreesSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['zone_id', 'annee', 'mois', 'type_demande', 'statut']
+    ordering_fields = ['annee', 'mois', 'total_emplois']
+    ordering = ['-annee', '-mois']
+    
+    @action(detail=False, methods=['get'])
+    @cache_api_response('emplois_summary', timeout=300)
+    def summary(self, request):
+        """Get emplois summary statistics"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        summary_data = queryset.aggregate(
+            total_demandes=Sum('nombre_demandes'),
+            total_emplois=Sum('total_emplois'),
+            total_expatries=Sum('total_emplois_expatries'),
+            total_nationaux=Sum('total_emplois_nationaux'),
+            zones_count=Count('zone_id', distinct=True)
+        )
+        
+        return Response(summary_data)
+
+
+class MartCreancesAgeesViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Créances Âgées Mart
+    
+    Filters available:
+    - tranche_anciennete: Filter by seniority bucket (0-30, 31-60, 61-90, 91-180, >180)
+    - niveau_risque: Filter by risk level (FAIBLE, MOYEN, ELEVE, CRITIQUE)
+    """
+    queryset = MartCreancesAgees.objects.all()
+    serializer_class = MartCreancesAgeesSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['tranche_anciennete', 'niveau_risque']
+    ordering_fields = ['tranche_anciennete', 'nombre_factures', 'montant_total_factures']
+    ordering = ['tranche_anciennete']
+    
+    @action(detail=False, methods=['get'])
+    @cache_api_response('creances_summary', timeout=300)
+    def summary(self, request):
+        """Get créances summary statistics"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        summary_data = queryset.aggregate(
+            total_factures=Sum('nombre_factures'),
+            total_entreprises=Sum('nombre_entreprises'),
+            total_montant=Sum('montant_total_factures'),
+            montant_moyen=Avg('montant_moyen'),
+            delai_moyen=Avg('delai_moyen_jours')
+        )
+        
+        return Response(summary_data)
