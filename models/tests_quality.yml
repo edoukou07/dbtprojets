@@ -1,13 +1,13 @@
-# Tests de qualité des données avancés pour les modèles facts et dimensions
+# Advanced data quality tests for facts and dimensions
 
 version: 2
 
 models:
-  # ===== TABLES DE FAITS =====
+  # ===== FACT TABLES =====
   - name: fait_attributions
-    description: "Tests de qualité pour la table de faits des attributions"
+    description: "Quality tests for the allocations fact table"
     tests:
-      # Vérifier que les données sont récentes (moins de 30 jours)
+      # Verify that data is recent (less than 30 days)
       - dbt_utils.recency:
           arguments:
             datepart: day
@@ -15,21 +15,21 @@ models:
             interval: 30
     columns:
       - name: montant_attribution
-        description: "Montant total de l'investissement"
+        description: "Total investment amount"
         tests:
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0
-                max_value: 100000000000  # 100 milliards FCFA max
-          # - not_null  # Désactivé temporairement - 12 valeurs NULL à corriger dans la source
+                max_value: 100000000000  # 100 billion FCFA max
+          # - not_null  # Temporarily disabled - 12 NULL values to fix in source
       
       - name: superficie_demandee
-        description: "Superficie demandée en m² (max 50,000 m² = 5 hectares)"
+        description: "Requested area in m2 (max 50,000 m2 = 5 hectares)"
         tests:
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0
-                max_value: 50000  # 50,000 m² = 5 hectares pour grands projets industriels
+                max_value: 50000  # 50,000 m2 = 5 hectares for large industrial projects
 
   - name: fait_factures
     columns:
@@ -37,11 +37,11 @@ models:
         tests:
           - dbt_utils.not_null_proportion:
               arguments:
-                at_least: 0.95  # Au moins 95% de valeurs non-nulles
+                at_least: 0.95  # At least 95% non-null values
           - dbt_utils.accepted_range:
               arguments:
                 min_value: 0
-                max_value: 10000000000  # 10 milliards FCFA max
+                max_value: 10000000000  # 10 billion FCFA max
 
   - name: fait_paiements
     columns:
@@ -71,7 +71,7 @@ models:
   # ===== DIMENSIONS =====
   - name: dim_entreprises
     tests:
-      # Vérifier que chaque combinaison est unique
+      # Verify that each combination is unique
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns:

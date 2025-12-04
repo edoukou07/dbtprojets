@@ -1,1 +1,0 @@
-{{ test_unique(column_name="domaine_key", model=get_where_subquery(ref('dim_domaines_activites'))) }}

@@ -1,1 +1,0 @@
-{{ dbt_utils.test_recency(datepart="day", field="date_modification", interval=30, model=get_where_subquery(ref('fait_attributions'))) }}

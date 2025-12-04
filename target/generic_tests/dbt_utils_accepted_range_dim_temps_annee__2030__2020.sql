@@ -1,1 +1,0 @@
-{{ dbt_utils.test_accepted_range(column_name="annee", max_value=2030, min_value=2020, model=get_where_subquery(ref('dim_temps'))) }}

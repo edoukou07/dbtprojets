@@ -32,6 +32,7 @@ enriched as (
         raison_sociale,
         forme_juridique,
         registre_commerce,
+        domaine_activite,
         
         -- Address
         adresse_personnelle,

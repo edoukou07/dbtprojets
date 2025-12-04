@@ -1,12 +1,39 @@
 
 
 -- Data Mart: API Performance (SLA Monitoring)
--- Suivi de la performance et du SLA des API
+-- Track API performance and SLA metrics
+-- Dimensions: Endpoint, Method, Status, Role, Environment, Category
 -- Refresh: Real-time
--- Utilisateurs: Infra, Devops, Tech leads
+-- Users: Infrastructure, DevOps, Tech leads
 
 with api_logs as (
     select * from "sigeti_node_db"."dwh_facts"."fait_api_logs"
+),
+
+enriched_logs as (
+    select
+        *,
+        -- Environment dimension (IMPORTANT)
+        case 
+            when request_path like '%prod%' then 'PRODUCTION'
+            when request_path like '%staging%' then 'STAGING'
+            when request_path like '%dev%' then 'DEVELOPMENT'
+            else 'UNKNOWN'
+        end as environment,
+        
+        -- Endpoint category dimension (IMPORTANT)
+        case 
+            when request_path like '%convention%' then 'Conventions'
+            when request_path like '%attribution%' then 'Attributions'
+            when request_path like '%facture%' or request_path like '%payment%' then 'Payments'
+            when request_path like '%collecte%' then 'Collections'
+            when request_path like '%agent%' then 'Agents'
+            when request_path like '%infraction%' then 'Infractions'
+            when request_path like '%zone%' or request_path like '%lot%' then 'Zones_Lots'
+            else 'Other'
+        end as endpoint_category
+    
+    from api_logs
 ),
 
 daily_kpis as (
@@ -16,38 +43,63 @@ daily_kpis as (
         status_code,
         user_role,
         
-        -- Volume et erreurs
+        -- Enriched dimensions (IMPORTANT)
+        environment,
+        endpoint_category,
+        
+        -- Volume and errors
         sum(nombre_requetes) as total_requetes,
         sum(nombre_erreurs) as total_erreurs,
         sum(nombre_requetes_lentes) as total_requetes_lentes,
         
-        -- Performance (cast to numeric for round function)
+        -- Performance metrics
         round(avg(duration_avg_ms)::numeric, 2) as duration_avg_ms_global,
         round(max(duration_p99_ms)::numeric, 2) as duration_p99_ms_global,
         round(max(duration_max_ms)::numeric, 2) as duration_max_ms_global,
+        round(min(duration_avg_ms)::numeric, 2) as duration_min_ms_global,
         
-        -- Rates
-        taux_erreur_pct,
-        taux_erreur_serveur_pct,
+        -- Error rates
+        avg(taux_erreur_pct) as taux_erreur_pct_avg,
+        avg(taux_erreur_serveur_pct) as taux_erreur_serveur_pct_avg,
+        
+        -- Slow requests rate
+        round(sum(nombre_requetes_lentes)::numeric / nullif(sum(nombre_requetes), 0) * 100, 2) as taux_requetes_lentes_pct,
         
         -- SLA Status
         case 
-            when taux_erreur_pct <= 1 and round(avg(duration_avg_ms)::numeric, 2) <= 200 then 'OK'
-            when taux_erreur_pct <= 2 and round(avg(duration_avg_ms)::numeric, 2) <= 500 then 'WARNING'
+            when avg(taux_erreur_pct) <= 1 and round(avg(duration_avg_ms)::numeric, 2) <= 200 then 'OK'
+            when avg(taux_erreur_pct) <= 2 and round(avg(duration_avg_ms)::numeric, 2) <= 500 then 'WARNING'
             else 'CRITICAL'
         end as sla_status,
         
         current_timestamp as dbt_processed_at
     
-    from api_logs
-    group by request_path, request_method, status_code, user_role, taux_erreur_pct, taux_erreur_serveur_pct
+    from enriched_logs
+    group by request_path, request_method, status_code, user_role, environment, endpoint_category
 ),
 
-with_keys as (
+sla_summary as (
     select
-        md5(cast(coalesce(cast(request_path as TEXT), '_dbt_utils_surrogate_key_null_') || '-' || coalesce(cast(status_code as TEXT), '_dbt_utils_surrogate_key_null_') as TEXT)) as api_perf_key,
-        *
+        case 
+            when sla_status = 'OK' then count(*)
+            else 0
+        end as endpoints_ok,
+        case 
+            when sla_status = 'WARNING' then count(*)
+            else 0
+        end as endpoints_warning,
+        case 
+            when sla_status = 'CRITICAL' then count(*)
+            else 0
+        end as endpoints_critical
     from daily_kpis
+    group by sla_status
 )
 
-select * from with_keys
+select
+    md5(cast(coalesce(cast(request_path as TEXT), '_dbt_utils_surrogate_key_null_') || '-' || coalesce(cast(status_code as TEXT), '_dbt_utils_surrogate_key_null_') || '-' || coalesce(cast(environment as TEXT), '_dbt_utils_surrogate_key_null_') as TEXT)) as api_perf_key,
+    dk.*,
+    (select coalesce(sum(endpoints_ok), 0) from sla_summary) as endpoints_ok,
+    (select coalesce(sum(endpoints_warning), 0) from sla_summary) as endpoints_warning,
+    (select coalesce(sum(endpoints_critical), 0) from sla_summary) as endpoints_critical
+from daily_kpis dk

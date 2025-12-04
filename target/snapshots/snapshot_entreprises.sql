@@ -1,1 +1,0 @@
-{{ snapshot_snapshot_entreprises() }}

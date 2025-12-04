@@ -25,12 +25,23 @@ enriched as (
         -- Statut et motif
         statut,
         motif_indemnisation,
+        recevabilite_decision,
         
         -- Montants
         montant_restant,
         
+        -- Indicateurs booléens
+        est_acceptee,
+        est_payee,
+        est_evaluee,
+        est_rejetee,
+        
+        -- Délai d'évaluation
+        delai_evaluation_jours,
+        
         -- Dates
         date_creation,
+        date_recevabilite,
         
         -- Lineage
         updated_at,

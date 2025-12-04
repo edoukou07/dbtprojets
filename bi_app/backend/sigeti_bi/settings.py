@@ -116,6 +116,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT en priorité
+        'rest_framework.authentication.TokenAuthentication',  # Token authentication pour tests
         'rest_framework.authentication.SessionAuthentication',  # Pour Django admin
     ],
     'DEFAULT_PERMISSION_CLASSES': [

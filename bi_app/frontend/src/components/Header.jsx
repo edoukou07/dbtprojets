@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Bell, Search, Settings, RefreshCw, Activity } from 'lucide-react'
+import { Bell, Search, Settings, RefreshCw, Activity, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import ThemeToggle from './ThemeToggle'
 import { useState } from 'react'
@@ -7,7 +7,7 @@ import { useState } from 'react'
 export default function Header() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [refreshing, setRefreshing] = useState(false)
 
   // Mapping des routes vers les titres
@@ -117,6 +117,17 @@ export default function Header() {
                     {user?.is_staff ? 'Administrateur' : 'Utilisateur'}
                   </p>
                 </div>
+                {/* Logout Button */}
+                <button 
+                  onClick={() => {
+                    logout()
+                    navigate('/login')
+                  }}
+                  className="p-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Se déconnecter"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>

@@ -288,6 +288,140 @@ class ComplianceComplianceViewSet(viewsets.ViewSet):
         
         return Response(results)
 
+    @action(detail=False, methods=['get'])
+    def conventions_by_domaine(self, request):
+        """Get conventions breakdown by business sector (domaine d'activité)."""
+        annee = request.query_params.get('annee', datetime.now().year)
+        
+        query = """
+            SELECT
+                categorie_domaine,
+                libelle_domaine,
+                COUNT(*) as records_count,
+                SUM(nombre_conventions) as total_conventions,
+                SUM(conventions_validees) as conventions_approved,
+                SUM(conventions_rejetees) as conventions_rejected,
+                ROUND(AVG(taux_validation_pct), 2) as avg_validation_pct,
+                ROUND(AVG(taux_rejet_pct), 2) as avg_rejection_pct,
+                ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_processing_days
+            FROM dwh_marts_compliance.mart_conventions_validation
+            WHERE EXTRACT(YEAR FROM to_date(annee_mois, 'YYYY-MM')) = %s
+            GROUP BY categorie_domaine, libelle_domaine
+            ORDER BY total_conventions DESC
+        """
+        
+        results = self._execute_query(query, [annee])
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    result[key] = 0
+                else:
+                    result[key] = self._serialize_decimal(value)
+        
+        return Response(results)
+
+    @action(detail=False, methods=['get'])
+    def conventions_by_categorie_domaine(self, request):
+        """Get conventions breakdown by aggregated business category."""
+        annee = request.query_params.get('annee', datetime.now().year)
+        
+        query = """
+            SELECT
+                categorie_domaine,
+                COUNT(*) as records_count,
+                SUM(nombre_conventions) as total_conventions,
+                SUM(conventions_validees) as conventions_approved,
+                SUM(conventions_rejetees) as conventions_rejected,
+                SUM(conventions_en_cours) as conventions_in_progress,
+                ROUND(AVG(taux_validation_pct), 2) as avg_validation_pct,
+                ROUND(AVG(taux_rejet_pct), 2) as avg_rejection_pct,
+                ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_processing_days,
+                ROUND(MAX(delai_max_traitement_jours), 1) as max_processing_days
+            FROM dwh_marts_compliance.mart_conventions_validation
+            WHERE EXTRACT(YEAR FROM to_date(annee_mois, 'YYYY-MM')) = %s
+            GROUP BY categorie_domaine
+            ORDER BY total_conventions DESC
+        """
+        
+        results = self._execute_query(query, [annee])
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    result[key] = 0
+                else:
+                    result[key] = self._serialize_decimal(value)
+        
+        return Response(results)
+
+    @action(detail=False, methods=['get'])
+    def conventions_by_forme_juridique(self, request):
+        """Get conventions breakdown by legal form (forme juridique)."""
+        annee = request.query_params.get('annee', datetime.now().year)
+        
+        query = """
+            SELECT
+                forme_juridique,
+                COUNT(*) as records_count,
+                SUM(nombre_conventions) as total_conventions,
+                SUM(conventions_validees) as conventions_approved,
+                SUM(conventions_rejetees) as conventions_rejected,
+                SUM(conventions_en_cours) as conventions_in_progress,
+                ROUND(AVG(taux_validation_pct), 2) as avg_validation_pct,
+                ROUND(AVG(taux_rejet_pct), 2) as avg_rejection_pct,
+                ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_processing_days
+            FROM dwh_marts_compliance.mart_conventions_validation
+            WHERE EXTRACT(YEAR FROM to_date(annee_mois, 'YYYY-MM')) = %s
+              AND forme_juridique IS NOT NULL
+            GROUP BY forme_juridique
+            ORDER BY total_conventions DESC
+        """
+        
+        results = self._execute_query(query, [annee])
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    result[key] = 0
+                else:
+                    result[key] = self._serialize_decimal(value)
+        
+        return Response(results)
+
+    @action(detail=False, methods=['get'])
+    def conventions_by_entreprise(self, request):
+        """Get conventions breakdown by enterprise (raison sociale)."""
+        annee = request.query_params.get('annee', datetime.now().year)
+        limit = int(request.query_params.get('limit', 50))
+        
+        query = """
+            SELECT
+                raison_sociale,
+                forme_juridique,
+                categorie_domaine,
+                COUNT(*) as records_count,
+                SUM(nombre_conventions) as total_conventions,
+                SUM(conventions_validees) as conventions_approved,
+                SUM(conventions_rejetees) as conventions_rejected,
+                SUM(conventions_en_cours) as conventions_in_progress,
+                ROUND(AVG(taux_validation_pct), 2) as avg_validation_pct,
+                ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_processing_days
+            FROM dwh_marts_compliance.mart_conventions_validation
+            WHERE EXTRACT(YEAR FROM to_date(annee_mois, 'YYYY-MM')) = %s
+              AND raison_sociale IS NOT NULL
+            GROUP BY raison_sociale, forme_juridique, categorie_domaine
+            ORDER BY total_conventions DESC
+            LIMIT %s
+        """
+        
+        results = self._execute_query(query, [annee, limit])
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    result[key] = 0
+                else:
+                    result[key] = self._serialize_decimal(value)
+        
+        return Response(results)
+
     # ==========================
     # Approval Delays Endpoints
     # ==========================
@@ -362,8 +496,12 @@ class ComplianceComplianceViewSet(viewsets.ViewSet):
                 etape_actuelle,
                 COUNT(*) as records_count,
                 SUM(nombre_conventions) as total_conventions,
+                SUM(CASE WHEN statut = 'Approuvée' THEN nombre_conventions ELSE 0 END) as conventions_approved,
+                SUM(CASE WHEN statut = 'Rejetée' THEN nombre_conventions ELSE 0 END) as conventions_rejected,
+                SUM(CASE WHEN statut = 'En Cours' THEN nombre_conventions ELSE 0 END) as conventions_in_progress,
                 ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_approval_days,
                 ROUND(AVG(delai_median_traitement_jours), 1) as median_approval_days,
+                ROUND(MAX(delai_max_traitement_jours), 1) as max_approval_days,
                 ROUND(AVG(delai_p95_traitement_jours), 1) as p95_approval_days
             FROM dwh_marts_compliance.mart_delai_approbation
             GROUP BY statut, etape_actuelle
@@ -385,19 +523,85 @@ class ComplianceComplianceViewSet(viewsets.ViewSet):
         """Get approval delays by current step."""
         query = """
             SELECT
-                etape_actuelle,
+                etape_actuelle as etape,
                 COUNT(*) as records_count,
                 SUM(nombre_conventions) as total_conventions,
+                SUM(CASE WHEN statut = 'Approuvée' THEN nombre_conventions ELSE 0 END) as conventions_approved,
+                SUM(CASE WHEN statut = 'Rejetée' THEN nombre_conventions ELSE 0 END) as conventions_rejected,
+                SUM(CASE WHEN statut = 'En Cours' THEN nombre_conventions ELSE 0 END) as conventions_in_progress,
                 ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_approval_days,
                 ROUND(AVG(delai_median_traitement_jours), 1) as median_approval_days,
                 ROUND(MIN(delai_min_traitement_jours), 1) as min_approval_days,
-                ROUND(MAX(delai_max_traitement_jours), 1) as max_approval_days
+                ROUND(MAX(delai_max_traitement_jours), 1) as max_approval_days,
+                ROUND(AVG(delai_max_traitement_jours), 1) as delai_max_traitement_jours
             FROM dwh_marts_compliance.mart_delai_approbation
             GROUP BY etape_actuelle
             ORDER BY total_conventions DESC
         """
         
         results = self._execute_query(query)
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    result[key] = 0
+                else:
+                    result[key] = self._serialize_decimal(value)
+        
+        return Response(results)
+
+    @action(detail=False, methods=['get'])
+    def approval_delays_by_domaine(self, request):
+        """Get approval delays by business sector."""
+        annee = request.query_params.get('annee', datetime.now().year)
+        
+        query = """
+            SELECT
+                categorie_domaine,
+                libelle_domaine,
+                COUNT(*) as records_count,
+                SUM(nombre_conventions) as total_conventions,
+                ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_approval_days,
+                ROUND(AVG(delai_median_traitement_jours), 1) as median_approval_days,
+                ROUND(MAX(delai_max_traitement_jours), 1) as max_approval_days,
+                ROUND(AVG(jours_attente_moyen), 1) as avg_waiting_days
+            FROM dwh_marts_compliance.mart_delai_approbation
+            WHERE EXTRACT(YEAR FROM to_date(annee_mois, 'YYYY-MM')) = %s
+            GROUP BY categorie_domaine, libelle_domaine
+            ORDER BY total_conventions DESC
+        """
+        
+        results = self._execute_query(query, [annee])
+        for result in results:
+            for key, value in result.items():
+                if value is None:
+                    result[key] = 0
+                else:
+                    result[key] = self._serialize_decimal(value)
+        
+        return Response(results)
+
+    @action(detail=False, methods=['get'])
+    def approval_delays_by_forme_juridique(self, request):
+        """Get approval delays by legal form."""
+        annee = request.query_params.get('annee', datetime.now().year)
+        
+        query = """
+            SELECT
+                forme_juridique,
+                COUNT(*) as records_count,
+                SUM(nombre_conventions) as total_conventions,
+                ROUND(AVG(delai_moyen_traitement_jours), 1) as avg_approval_days,
+                ROUND(AVG(delai_median_traitement_jours), 1) as median_approval_days,
+                ROUND(MAX(delai_max_traitement_jours), 1) as max_approval_days,
+                ROUND(AVG(jours_attente_moyen), 1) as avg_waiting_days
+            FROM dwh_marts_compliance.mart_delai_approbation
+            WHERE EXTRACT(YEAR FROM to_date(annee_mois, 'YYYY-MM')) = %s
+              AND forme_juridique IS NOT NULL
+            GROUP BY forme_juridique
+            ORDER BY total_conventions DESC
+        """
+        
+        results = self._execute_query(query, [annee])
         for result in results:
             for key, value in result.items():
                 if value is None:

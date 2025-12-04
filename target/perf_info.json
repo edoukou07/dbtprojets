@@ -1,12 +1,12 @@
 {
-    "path_count": 234,
+    "path_count": 241,
     "parsed_path_count": 0,
     "static_analysis_path_count": 0,
     "static_analysis_parsed_path_count": 0,
     "is_partial_parse_enabled": true,
     "is_static_analysis_enabled": true,
-    "read_files_elapsed": 0.0921290999995108,
-    "load_all_elapsed": 0.30978399999912654,
+    "read_files_elapsed": 0.09540569999080617,
+    "load_all_elapsed": 0.3195555999991484,
     "projects": [
         {
             "project_name": "sigeti_dwh",

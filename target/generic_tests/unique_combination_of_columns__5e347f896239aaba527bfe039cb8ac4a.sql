@@ -1,1 +1,0 @@
-{{ dbt_utils.test_unique_combination_of_columns(combination_of_columns=["entreprise_key"], model=get_where_subquery(ref('dim_entreprises'))) }}

@@ -1,1 +1,0 @@
-{{ test_not_null(column_name="montant_paiement", model=get_where_subquery(ref('fait_paiements'))) }}

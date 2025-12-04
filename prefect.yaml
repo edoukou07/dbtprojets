@@ -1,5 +1,5 @@
-# Configuration de déploiement pour Prefect 3.x
-# Utilisation: prefect deploy --prefect-file prefect.yaml
+# Deployment configuration for Prefect 3.x
+# Usage: prefect deploy --prefect-file prefect.yaml
 
 # Build configuration
 build: null
@@ -20,7 +20,7 @@ deployments:
     - production
     - dwh
     - daily
-  description: "Pipeline quotidien de rafraîchissement complet du Data Warehouse SIGETI"
+  description: "Daily full Data Warehouse refresh pipeline for SIGETI"
   schedule:
     cron: "0 2 * * *"
     timezone: "Africa/Abidjan"

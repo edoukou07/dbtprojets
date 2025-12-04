@@ -11,6 +11,7 @@ with raw_etapes as (
         suivi_implantation_id,
         nom,
         description,
+        ordre,
         statut,
         progression,
         date_debut_prevue,
@@ -31,6 +32,7 @@ validated as (
         -- Attributes
         nom as etape_name,
         description as etape_description,
+        ordre,
         statut,
         progression as progression_pct,
         
@@ -38,7 +40,58 @@ validated as (
         date_debut_prevue,
         date_debut_effective,
         date_fin_prevue,
-        nullif(date_fin_effective, null) as date_fin_effective,
+        date_fin_effective,
+        
+        -- Calculs de durées (en jours)
+        case 
+            when date_debut_prevue is not null and date_fin_prevue is not null
+            then extract(epoch from (date_fin_prevue - date_debut_prevue))/86400
+            else null
+        end as duree_prevue_jours,
+        
+        case 
+            when date_debut_effective is not null and date_fin_effective is not null
+            then extract(epoch from (date_fin_effective - date_debut_effective))/86400
+            else null
+        end as duree_reelle_jours,
+        
+        -- Calcul du retard
+        case 
+            when date_fin_effective is not null and date_fin_prevue is not null
+            then extract(epoch from (date_fin_effective - date_fin_prevue))/86400
+            when date_fin_effective is null and date_fin_prevue is not null and current_date > date_fin_prevue::date
+            then extract(epoch from (current_timestamp - date_fin_prevue))/86400
+            else 0
+        end as jours_de_retard,
+        
+        -- Indicateurs booléens
+        case 
+            when date_fin_prevue is not null and current_timestamp > date_fin_prevue and date_fin_effective is null
+            then 1
+            when date_fin_effective is not null and date_fin_effective > date_fin_prevue
+            then 1
+            else 0
+        end as est_en_retard,
+        
+        case 
+            when date_fin_effective is not null and progression = 100
+            then 1
+            else 0
+        end as est_complete,
+        
+        -- Validations
+        case 
+            when statut in ('EN_ATTENTE', 'EN_COURS', 'TERMINE', 'RETARD', 'BLOQUE')
+            then 1
+            else 0
+        end as statut_valide,
+        
+        case 
+            when date_debut_prevue is not null and date_fin_prevue is not null 
+                 and date_fin_prevue >= date_debut_prevue
+            then 1
+            else 0
+        end as dates_coherentes,
         
         -- Audit
         created_at,

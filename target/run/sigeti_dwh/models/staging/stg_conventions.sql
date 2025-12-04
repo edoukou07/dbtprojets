@@ -23,6 +23,7 @@ with raw_conventions as (
         raison_sociale,
         forme_juridique,
         registre_commerce,
+        domaine_activite,
         statut,
         etape_actuelle,
         cree_par,
@@ -47,6 +48,7 @@ validated as (
         raison_sociale,
         forme_juridique,
         registre_commerce,
+        domaine_activite,
         
         -- Status
         statut,

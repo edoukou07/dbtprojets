@@ -22,6 +22,19 @@ export const complianceComplianceAPI = {
   getConventionsByStatus: () =>
     api.get(`${COMPLIANCE_COMPLIANCE_BASE}/conventions_by_status/`),
 
+  // ===== Conventions by Enterprise Dimensions (Phase 1) =====
+  getConventionsByDomaine: (annee = new Date().getFullYear()) =>
+    api.get(`${COMPLIANCE_COMPLIANCE_BASE}/conventions_by_domaine/`, { params: { annee } }),
+
+  getConventionsByCategorieDomaine: (annee = new Date().getFullYear()) =>
+    api.get(`${COMPLIANCE_COMPLIANCE_BASE}/conventions_by_categorie_domaine/`, { params: { annee } }),
+
+  getConventionsByFormeJuridique: (annee = new Date().getFullYear()) =>
+    api.get(`${COMPLIANCE_COMPLIANCE_BASE}/conventions_by_forme_juridique/`, { params: { annee } }),
+
+  getConventionsByEntreprise: (annee = new Date().getFullYear(), limit = 20) =>
+    api.get(`${COMPLIANCE_COMPLIANCE_BASE}/conventions_by_entreprise/`, { params: { annee, limit } }),
+
   // ===== Approval Delays =====
   getApprovalDelaysSummary: (annee = new Date().getFullYear()) =>
     api.get(`${COMPLIANCE_COMPLIANCE_BASE}/approval_delays_summary/`, { params: { annee } }),
@@ -34,6 +47,13 @@ export const complianceComplianceAPI = {
 
   getApprovalDelaysByEtape: () =>
     api.get(`${COMPLIANCE_COMPLIANCE_BASE}/approval_delays_by_etape/`),
+
+  // ===== Approval Delays by Enterprise Dimensions (Phase 1) =====
+  getApprovalDelaysByDomaine: (annee = new Date().getFullYear()) =>
+    api.get(`${COMPLIANCE_COMPLIANCE_BASE}/approval_delays_by_domaine/`, { params: { annee } }),
+
+  getApprovalDelaysByFormeJuridique: (annee = new Date().getFullYear()) =>
+    api.get(`${COMPLIANCE_COMPLIANCE_BASE}/approval_delays_by_forme_juridique/`, { params: { annee } }),
 };
 
 export default complianceComplianceAPI;
