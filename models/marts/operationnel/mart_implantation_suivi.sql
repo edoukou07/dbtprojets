@@ -5,7 +5,7 @@
         {'columns': ['zone_id']},
         {'columns': ['annee_mois']}
     ],
-    tags=['operationnel', 'P1'],
+    tags=['operationnel', 'P2'],
     enabled=true
 ) }}
 
