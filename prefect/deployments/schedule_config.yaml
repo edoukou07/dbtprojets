@@ -1,5 +1,6 @@
 # Prefect Deployment Configuration - YAML Format
 # Defines incremental refresh schedules and execution parameters
+# UPDATED: Added Phase 2 deployment for new marts (implantation_suivi, indemnisations, emplois_crees, creances_agees)
 
 version: 1
 
@@ -86,6 +87,47 @@ deployments:
           - admin@sigeti.local
 
 
+  # Phase 2 - Nouveaux Marts Refresh (NEW)
+  - name: phase2-dashboards-refresh
+    flow: phase2_dashboards_refresh_flow
+    description: Refresh des 4 nouveaux marts Phase 2 - implantation_suivi, indemnisations, emplois_crees, creances_agees
+    tags:
+      - production
+      - phase2
+      - dashboards
+      - nouveaux-marts
+    schedule:
+      type: cron
+      cron: "30 2,5,8,11,14,17,20,23 * * *"  # Toutes les 3 heures à H+30 (02:30, 05:30, 08:30, etc. UTC)
+      timezone: UTC
+    parameters:
+      validate_data: true
+      invalidate_cache: true
+      marts:
+        - mart_implantation_suivi
+        - mart_indemnisations
+        - mart_emplois_crees
+        - mart_creances_agees
+    work_queue: default
+    infrastructure:
+      type: process
+      env:
+        PREFECT_LOGGING_LEVEL: INFO
+        DBT_THREADS: "8"
+        DBT_PROFILES_DIR: "./"
+        API_BASE_URL: "http://localhost:8000"
+    notifications:
+      - type: email
+        on:
+          - FAILED
+        recipients:
+          - admin@sigeti.local
+      - type: slack
+        on:
+          - FAILED
+        channel: "#phase2-alerts"
+
+
 # Monitoring and Alerting
 monitoring:
   enabled: true
@@ -160,6 +202,32 @@ data_quality:
         min_rows: 0
         max_rows: 500000
         expected_lag_hours: 2
+  
+  # Phase 2 Marts (NEW)
+  phase2_marts:
+    - mart_implantation_suivi:
+        key_columns: [zone_id, annee, mois]
+        min_rows: 0
+        max_rows: 50000
+        expected_lag_hours: 3
+    
+    - mart_indemnisations:
+        key_columns: [zone_id, annea, mois]
+        min_rows: 0  # Can be empty if source data empty
+        max_rows: 50000
+        expected_lag_hours: 3
+    
+    - mart_emplois_crees:
+        key_columns: [zone_id, annea, mois]
+        min_rows: 0
+        max_rows: 100000
+        expected_lag_hours: 3
+    
+    - mart_creances_agees:
+        key_columns: [tranche_anciennete, niveau_risque]
+        min_rows: 0
+        max_rows: 50000
+        expected_lag_hours: 3
 
 
 # Resource Configuration
