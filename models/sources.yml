@@ -2,31 +2,31 @@ version: 2
 
 sources:
   - name: sigeti_source
-    description: "Base de données source SIGETI"
+    description: "SIGETI source database"
     database: "{{ env_var('SOURCE_DB_NAME', 'sigeti_node_db') }}"
     schema: public
     
     tables:
       - name: entreprises
-        description: "Entreprises enregistrées dans le système"
+        description: "Companies registered in the system"
         columns:
           - name: id
-            description: "Identifiant unique"
+            description: "Unique identifier"
             tests:
               - unique
               - not_null
               
       - name: lots
-        description: "Parcelles de terrain dans les zones industrielles"
+        description: "Land parcels in industrial zones"
         columns:
           - name: id
-            description: "Identifiant unique du lot"
+            description: "Unique lot identifier"
             tests:
               - unique
               - not_null
               
       - name: zones_industrielles
-        description: "Zones industrielles"
+        description: "Industrial zones"
         columns:
           - name: id
             tests:
@@ -34,7 +34,7 @@ sources:
               - not_null
               
       - name: factures
-        description: "Factures émises"
+        description: "Issued invoices"
         columns:
           - name: id
             tests:
@@ -42,47 +42,53 @@ sources:
               - not_null
               
       - name: paiement_factures
-        description: "Paiements de factures"
+        description: "Invoice payments"
         
       - name: demandes_attribution
-        description: "Demandes d'attribution de lots"
+        description: "Lot allocation requests"
         
       - name: collectes
-        description: "Opérations de collecte de revenus"
+        description: "Revenue collection operations"
         
       - name: indemnisations
-        description: "Indemnisations des ayants-droits"
+        description: "Indemnifications for beneficiaries"
         
       - name: ayants_droits
-        description: "Bénéficiaires d'indemnisations"
+        description: "Indemnification beneficiaries"
         
       - name: domaines_activites
-        description: "Secteurs d'activité des entreprises"
+        description: "Business sectors"
         
       - name: operateurs
-        description: "Opérateurs du système"
+        description: "System operators"
         
       - name: decisions_commission
-        description: "Décisions des commissions d'attribution"
+        description: "Allocation committee decisions"
         
       - name: audit_logs
-        description: "Logs d'audit du système"
+        description: "System audit logs"
         
       - name: conventions
-        description: "Conventions signées"
+        description: "Signed conventions"
         
       - name: purges
-        description: "Opérations de purge/libération de terrain"
+        description: "Purge/land release operations"
         
       - name: agents
-        description: "Agents du système"
+        description: "System agents"
         
       - name: infractions
         description: "Infractions (workflow_infractions)"
         identifier: "workflow_infractions"
         
       - name: etapes_suivi_implantation
-        description: "Étapes de suivi d'implantation des entreprises"
+        description: "Company implementation tracking steps"
+        
+      - name: suivis_implantation
+        description: "Main implementation tracking table"
+        
+      - name: demande_attribution_lots
+        description: "Lots linked to attribution requests"
         
       - name: collecte_agents
-        description: "Collectes de données par agent"
+        description: "Data collections by agent"

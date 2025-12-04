@@ -4,7 +4,7 @@
     unique_key=['implantation_id', 'etape_id'],
     on_schema_change='append_new_columns',
     tags=['operationnel', 'P1'],
-    enabled=false
+    enabled=true
 ) }}
 
 -- Fact Table: Implantations
@@ -29,20 +29,26 @@ enriched as (
         etape_id,
         
         -- Attributs
-        statut,
+        etape_name,
         etape_description,
+        ordre,
+        statut,
+        progression_pct,
         est_en_retard,
         est_complete,
         
         -- Dates
-        date_debut,
+        date_debut_prevue,
+        date_debut_effective,
         date_fin_prevue,
         date_fin_effective,
         
-        -- Calculs
+        -- Calculs de durées
         duree_prevue_jours,
         duree_reelle_jours,
         jours_de_retard,
+        
+        -- Validations
         statut_valide,
         dates_coherentes,
         

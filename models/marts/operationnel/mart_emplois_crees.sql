@@ -6,7 +6,7 @@
         {'columns': ['annee']}
     ],
     tags=['socio_eco', 'P2'],
-    enabled=false
+    enabled=true
 ) }}
 
 -- Data Mart: Emplois Créés
@@ -24,35 +24,31 @@ zones as (
 
 aggregated as (
     select
-        z.zone_name,
+        z.nom_zone as zone_name,
         e.zone_id,
-        e.annee,
-        e.emploi_category,
-        e.emploi_sector,
+        extract(year from e.date_premiere_creation) as annee,
+        extract(month from e.date_premiere_creation) as mois,
+        e.type_demande,
+        e.statut,
         
         -- Volumes totaux
+        count(*) as nombre_demandes,
         sum(e.total_emplois) as total_emplois,
-        sum(e.total_expatries) as total_expatries,
-        sum(e.total_nationaux) as total_nationaux,
-        sum(e.total_cadres) as total_cadres,
-        
-        -- Nombre de demandes
-        sum(e.nombre_demandes) as nombre_demandes,
-        
-        -- Ratios
-        round(sum(e.total_expatries)::numeric / nullif(sum(e.total_emplois), 0) * 100, 2) as pct_expatries,
-        round(sum(e.total_nationaux)::numeric / nullif(sum(e.total_emplois), 0) * 100, 2) as pct_nationaux,
-        round(sum(e.total_cadres)::numeric / nullif(sum(e.total_emplois), 0) * 100, 2) as pct_cadres,
+        sum(e.total_emplois_expatries) as total_emplois_expatries,
+        sum(e.total_emplois_nationaux) as total_emplois_nationaux,
         
         -- Moyennes
-        round(avg(e.avg_expatries_par_demande), 2) as avg_expatries_par_demande,
-        round(avg(e.avg_nationaux_par_demande), 2) as avg_nationaux_par_demande,
+        round(avg(e.avg_emplois_par_demande)::numeric, 2) as avg_emplois_par_demande,
+        
+        -- Ratios
+        round(sum(e.total_emplois_expatries)::numeric / nullif(sum(e.total_emplois), 0) * 100, 2) as pct_expatries,
+        round(sum(e.total_emplois_nationaux)::numeric / nullif(sum(e.total_emplois), 0) * 100, 2) as pct_nationaux,
         
         current_timestamp as dbt_updated_at
     
     from emplois e
     left join zones z on e.zone_id = z.zone_id
-    group by z.zone_name, e.zone_id, e.annee, e.emploi_category, e.emploi_sector
+    group by z.nom_zone, e.zone_id, annee, mois, e.type_demande, e.statut
 )
 
 select * from aggregated

@@ -1,12 +1,8 @@
 {{ config(
     materialized='table',
     schema='marts_financier',
-    indexes=[
-        {'columns': ['zone_id']},
-        {'columns': ['tranche_anciennete']}
-    ],
     tags=['finance', 'P2'],
-    enabled=false
+    enabled=true
 ) }}
 
 -- Data Mart: Créances Âgées
@@ -15,21 +11,16 @@
 -- Utilisateurs: Finance, Direction commerciale
 
 with factures as (
-    select * from {{ source('sigeti_source', 'factures') }}
-    where statut = 'IMPAYEE' or statut = 'PARTIELLEMENT_PAYEE'
+    select * from {{ ref('fait_factures') }}
+    where est_en_retard = true or montant_total > 0
 ),
 
 calculs as (
     select
-        zone_id,
         entreprise_id,
-        reference_facture,
+        numero_facture,
         date_echeance,
         montant_total,
-        montant_paye,
-        montant_total - coalesce(montant_paye, 0) as montant_restant,
-        
-        extract(day from current_date - date_echeance) as jours_anciennete,
         
         case 
             when extract(day from current_date - date_echeance) between 0 and 30 then '0-30 jours'
@@ -45,10 +36,12 @@ calculs as (
             when extract(day from current_date - date_echeance) > 90 then 'ELEVE'
             when extract(day from current_date - date_echeance) > 60 then 'MOYEN'
             else 'FAIBLE'
-        end as niveau_risque
+        end as niveau_risque,
+        
+        delai_paiement_jours
     
     from factures
-    where current_date >= date_echeance
+    where date_echeance is not null
 ),
 
 aggregated as (
@@ -58,23 +51,15 @@ aggregated as (
         
         -- Volumes
         count(*) as nombre_factures,
-        count(distinct zone_id) as nombre_zones,
         count(distinct entreprise_id) as nombre_entreprises,
         
         -- Montants
-        sum(montant_total) as montant_total_factures,
-        sum(montant_paye) as montant_total_paye,
-        sum(montant_restant) as montant_total_impaye,
+        round(sum(montant_total)::numeric, 2) as montant_total_factures,
+        round(avg(montant_total)::numeric, 2) as montant_moyen,
         
-        -- Taux
-        round(sum(montant_restant)::numeric / nullif(sum(montant_total), 0) * 100, 2) as taux_impaye_pct,
-        
-        -- Moyennes
-        round(avg(montant_restant), 2) as montant_impaye_moyen,
-        round(avg(jours_anciennete), 2) as jours_anciennete_moyen,
-        
-        -- Top entreprises (pour drill-down)
-        array_agg(distinct zone_id order by zone_id) as zones_concernees,
+        -- Délais
+        round(avg(extract(epoch from delai_paiement_jours)/86400)::numeric, 2) as delai_moyen_jours,
+        max(extract(epoch from delai_paiement_jours)/86400) as delai_max_jours,
         
         current_timestamp as dbt_updated_at
     
