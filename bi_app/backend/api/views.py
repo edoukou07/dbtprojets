@@ -157,16 +157,15 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             summary['taux_recouvrement'] = 0
         
-        # Handle delai_moyen_paiement - calculer directement à partir des vraies factures
+        # Calculate delai_moyen_paiement from mart data (already in days as DECIMAL)
+        # The mart stores delai_moyen_paiement as INTERVAL, need to extract days
         from django.db import connection
         cursor = connection.cursor()
         
         cursor.execute("""
-            SELECT ROUND(AVG(EXTRACT(DAY FROM (date_paiement - date_creation))))
-            FROM factures
-            WHERE date_paiement IS NOT NULL
-              AND date_creation IS NOT NULL
-              AND date_paiement >= date_creation
+            SELECT ROUND(AVG(EXTRACT(EPOCH FROM delai_moyen_paiement) / 86400))
+            FROM dwh_marts_financier.mart_performance_financiere
+            WHERE delai_moyen_paiement IS NOT NULL
         """)
         
         delai_result = cursor.fetchone()
@@ -635,16 +634,14 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
             factures_retard_total=Sum('nombre_factures_retard'),
         )
         
-        # Calculate delai_moyen_paiement from actual invoices
+        # Calculate delai_moyen_paiement from mart data (extract days from INTERVAL)
         from django.db import connection
         cursor = connection.cursor()
         
         cursor.execute("""
-            SELECT ROUND(AVG(EXTRACT(DAY FROM (date_paiement - date_creation))))
-            FROM factures
-            WHERE date_paiement IS NOT NULL
-              AND date_creation IS NOT NULL
-              AND date_paiement >= date_creation
+            SELECT ROUND(AVG(EXTRACT(EPOCH FROM delai_moyen_paiement) / 86400))
+            FROM dwh_marts_clients.mart_portefeuille_clients
+            WHERE delai_moyen_paiement IS NOT NULL
         """)
         
         delai_result = cursor.fetchone()
@@ -908,14 +905,22 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
             # Aggregate data
             stats = filtered_qs.aggregate(
                 count=Count('entreprise_id'),
-                ca_total=Sum('chiffre_affaires_total'),
-                delai_moyen=Avg('delai_moyen_paiement')
+                ca_total=Sum('chiffre_affaires_total')
             )
             
-            # Convert timedelta to days if needed
+            # Calculate delai_moyen directly from raw SQL to handle INTERVAL type
             delai_moyen = 0
-            if stats['delai_moyen'] and isinstance(stats['delai_moyen'], timedelta):
-                delai_moyen = stats['delai_moyen'].days
+            if stats['count'] > 0:
+                from django.db import connection
+                cursor = connection.cursor()
+                cursor.execute("""
+                    SELECT ROUND(AVG(EXTRACT(EPOCH FROM delai_moyen_paiement) / 86400))
+                    FROM dwh_marts_clients.mart_portefeuille_clients
+                    WHERE taux_paiement_pct >= %s AND taux_paiement_pct < %s
+                      AND delai_moyen_paiement IS NOT NULL
+                """, [cat['min'], cat['max']])
+                result = cursor.fetchone()
+                delai_moyen = int(result[0]) if result[0] else 0
             
             comportement.append({
                 'count': stats['count'] or 0,
@@ -939,18 +944,16 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
         
         par_delai = []
         for range_def in delai_ranges:
-            # Calculate delay in SQL to get accurate data from factures
+            # Calculate delay from mart data (extract days from INTERVAL)
             cursor.execute("""
                 SELECT 
-                    COUNT(DISTINCT e.id) as count,
-                    COALESCE(SUM(f.montant_total), 0) as ca_total,
-                    COALESCE(AVG(CASE WHEN f.montant_total > 0 THEN (f.montant_paye / f.montant_total * 100) ELSE 0 END), 0) as taux_paiement_moyen
-                FROM factures f
-                JOIN entreprises e ON f.entreprise_id = e.id
-                WHERE f.date_paiement IS NOT NULL 
-                  AND f.date_creation IS NOT NULL
-                  AND EXTRACT(DAY FROM (f.date_paiement - f.date_creation))::INT >= %s
-                  AND EXTRACT(DAY FROM (f.date_paiement - f.date_creation))::INT < %s
+                    COUNT(DISTINCT entreprise_id) as count,
+                    COALESCE(SUM(chiffre_affaires_total), 0) as ca_total,
+                    COALESCE(AVG(taux_paiement_pct), 0) as taux_paiement_moyen
+                FROM dwh_marts_clients.mart_portefeuille_clients
+                WHERE delai_moyen_paiement IS NOT NULL
+                  AND EXTRACT(EPOCH FROM delai_moyen_paiement) / 86400 >= %s
+                  AND EXTRACT(EPOCH FROM delai_moyen_paiement) / 86400 < %s
             """, [range_def['min'], range_def['max']])
             
             result = cursor.fetchone()
@@ -979,23 +982,17 @@ class MartPortefeuilleClientsViewSet(viewsets.ReadOnlyModelViewSet):
         avec_lots = queryset.filter(nombre_lots_attribues__gt=0)
         sans_lots = queryset.filter(Q(nombre_lots_attribues=0) | Q(nombre_lots_attribues__isnull=True))
         
-        # Calculate superficies from real data (demandes_attribution and lots)
-        cursor.execute("""
-            SELECT 
-                COUNT(DISTINCT da.entreprise_id) as nombre_clients,
-                COUNT(DISTINCT dal.lot_id) as total_lots,
-                COALESCE(SUM(l.superficie), 0) as superficie_totale
-            FROM demandes_attribution da
-            JOIN demande_attribution_lots dal ON da.id = dal.demande_attribution_id
-            JOIN lots l ON dal.lot_id = l.id
-            WHERE da.statut = 'VALIDE'
-        """)
+        # Calculate stats from mart data (already aggregated)
+        stats_avec_lots_agg = avec_lots.aggregate(
+            nombre_clients=Count('entreprise_id'),
+            total_lots=Sum('nombre_lots_attribues'),
+            superficie_totale=Sum('superficie_totale_attribuee')
+        )
         
-        result = cursor.fetchone()
         stats_avec_lots = {
-            'nombre_clients': result[0] or 0,
-            'total_lots': result[1] or 0,
-            'superficie_totale': float(result[2]) or 0,
+            'nombre_clients': stats_avec_lots_agg['nombre_clients'] or 0,
+            'total_lots': stats_avec_lots_agg['total_lots'] or 0,
+            'superficie_totale': float(stats_avec_lots_agg['superficie_totale'] or 0),
         }
         
         # Get CA stats from the marts queryset
@@ -1877,14 +1874,12 @@ class MartEmploisCreesViewSet(viewsets.ReadOnlyModelViewSet):
     - zone_id: Filter by zone ID
     - annee: Filter by year
     - mois: Filter by month
-    - type_demande: Filter by demand type
-    - statut: Filter by status
     """
     queryset = MartEmploisCrees.objects.all()
     serializer_class = MartEmploisCreesSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['zone_id', 'annee', 'mois', 'type_demande', 'statut']
-    ordering_fields = ['annee', 'mois', 'total_emplois']
+    filterset_fields = ['zone_id', 'annee', 'mois']
+    ordering_fields = ['annee', 'mois', 'nombre_emplois_crees']
     ordering = ['-annee', '-mois']
     
     @action(detail=False, methods=['get'])
@@ -1894,10 +1889,10 @@ class MartEmploisCreesViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         
         summary_data = queryset.aggregate(
-            total_demandes=Sum('nombre_demandes'),
-            total_emplois=Sum('total_emplois'),
-            total_expatries=Sum('total_emplois_expatries'),
-            total_nationaux=Sum('total_emplois_nationaux'),
+            total_emplois_crees=Sum('nombre_emplois_crees'),
+            total_cdi=Sum('nombre_cdi'),
+            total_cdd=Sum('nombre_cdd'),
+            total_montant_salaires=Sum('montant_salaires'),
             zones_count=Count('zone_id', distinct=True)
         )
         
@@ -1909,15 +1904,16 @@ class MartCreancesAgeesViewSet(viewsets.ReadOnlyModelViewSet):
     API endpoint for Créances Âgées Mart
     
     Filters available:
-    - tranche_anciennete: Filter by seniority bucket (0-30, 31-60, 61-90, 91-180, >180)
-    - niveau_risque: Filter by risk level (FAIBLE, MOYEN, ELEVE, CRITIQUE)
+    - zone_id: Filter by zone ID
+    - annee: Filter by year
+    - mois: Filter by month
     """
     queryset = MartCreancesAgees.objects.all()
     serializer_class = MartCreancesAgeesSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['tranche_anciennete', 'niveau_risque']
-    ordering_fields = ['tranche_anciennete', 'nombre_factures', 'montant_total_factures']
-    ordering = ['tranche_anciennete']
+    filterset_fields = ['zone_id', 'annee', 'mois']
+    ordering_fields = ['annee', 'mois', 'montant_creances']
+    ordering = ['-annee', '-mois']
     
     @action(detail=False, methods=['get'])
     @cache_api_response('creances_summary', timeout=300)
@@ -1926,11 +1922,11 @@ class MartCreancesAgeesViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         
         summary_data = queryset.aggregate(
-            total_factures=Sum('nombre_factures'),
-            total_entreprises=Sum('nombre_entreprises'),
-            total_montant=Sum('montant_total_factures'),
-            montant_moyen=Avg('montant_moyen'),
-            delai_moyen=Avg('delai_moyen_jours')
+            total_creances=Sum('nombre_creances'),
+            total_montant_creances=Sum('montant_creances'),
+            total_montant_recouvre=Sum('montant_recouvre'),
+            avg_taux_recouvrement=Avg('taux_recouvrement_pct'),
+            zones_count=Count('zone_id', distinct=True)
         )
         
         return Response(summary_data)
