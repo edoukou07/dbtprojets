@@ -45,33 +45,33 @@ export default function ComplianceInfractions() {
 
   const { data: tendancesAnnuelles } = useQuery({
     queryKey: ['compliance-tendances-annuelles'],
-    queryFn: () => api.get('/compliance/tendances-annuelles/').then(res => res.data),
+    queryFn: () => api.get('/compliance/tendances_annuelles/').then(res => res.data),
   })
 
   const { data: infractionsParZone } = useQuery({
     queryKey: ['compliance-par-zone', selectedYear],
-    queryFn: () => api.get('/compliance/infractions-par-zone/', {
+    queryFn: () => api.get('/compliance/infractions_par_zone/', {
       params: { annee: selectedYear }
     }).then(res => res.data),
   })
 
   const { data: distributionGravite } = useQuery({
     queryKey: ['compliance-distribution-gravite', selectedYear],
-    queryFn: () => api.get('/compliance/distribution-gravite/', {
+    queryFn: () => api.get('/compliance/distribution_gravite/', {
       params: { annee: selectedYear }
     }).then(res => res.data),
   })
 
   const { data: resolutionStats } = useQuery({
     queryKey: ['compliance-resolution', selectedYear],
-    queryFn: () => api.get('/compliance/resolution-stats/', {
+    queryFn: () => api.get('/compliance/resolution_stats/', {
       params: { annee: selectedYear }
     }).then(res => res.data),
   })
 
   const { data: infractionsDetail } = useQuery({
     queryKey: ['compliance-infractions-detail', selectedYear, selectedZone, selectedSeverity],
-    queryFn: () => api.get('/compliance/infractions-detail/', {
+    queryFn: () => api.get('/compliance/infractions_detail/', {
       params: {
         annee: selectedYear,
         zone_id: selectedZone || undefined,
