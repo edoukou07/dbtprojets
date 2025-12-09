@@ -34,6 +34,17 @@ Ce guide explique comment configurer un serveur SMTP (Simple Mail Transfer Proto
 
 #### 3. Configurer le fichier `.env`
 
+Copiez d'abord le modèle `bi_app/backend/env.example` :
+
+```bash
+cd bi_app/backend
+copy env.example .env  # PowerShell
+# ou
+cp env.example .env    # bash
+```
+
+Puis renseignez vos identifiants SMTP :
+
 ```bash
 # Fichier: bi_app/backend/.env
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend

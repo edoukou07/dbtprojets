@@ -109,21 +109,22 @@ export default function Financier() {
     return data;
   };
 
-  // Pas besoin de fonctions séparées - ExportButton gère tout
 
   return (
     <div className="space-y-8">
       {/* Header Principal */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Performance Financière</h2>
+        <div className="flex items-center gap-3">
         <ExportButton 
           data={prepareExportData()} 
           filename={`financier_${selectedYear}`}
           title={`Dashboard Financier - ${selectedYear}`}
-          showPDF={true}
+            showPDF={false}
           showExcel={true}
           showCSV={true}
         />
+        </div>
       </div>
 
       {/* Contrôles et Comparaison */}

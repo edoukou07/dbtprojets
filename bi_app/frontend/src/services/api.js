@@ -91,5 +91,15 @@ export const reportsAPI = {
   update: (id, payload) => api.put(`/reports/${id}/`, payload),
   delete: (id) => api.delete(`/reports/${id}/`),
   sendNow: (id) => api.post(`/reports/${id}/send_now/`),
+  sendScheduled: () => api.post('/reports/send_scheduled/'),
   list: () => api.get('/reports/'),
-}
+};
+
+export const smtpAPI = {
+  list: () => api.get('/smtp/'),
+  create: (payload) => api.post('/smtp/', payload),
+  update: (id, payload) => api.put(`/smtp/${id}/`, payload),
+  delete: (id) => api.delete(`/smtp/${id}/`),
+  status: () => api.get('/smtp/status/'),
+  test: (payload) => api.post('/smtp/test/', payload),
+};

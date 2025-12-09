@@ -24,7 +24,8 @@
     "react-leaflet-cluster": "^3.1.1",
     "react-router-dom": "^6.20.0",
     "recharts": "^2.15.4",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "@react-pdf/renderer": "^3.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

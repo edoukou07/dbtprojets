@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { operationnelAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
@@ -87,99 +88,12 @@ export default function Operationnel() {
     return new Intl.NumberFormat('fr-FR').format(value)
   }
 
-  // Préparer données pour export
-  const prepareExportData = () => {
-    const data = []
-
-    // Résumé Global
-    if (summary) {
-      data.push({ 'Catégorie': 'RÉSUMÉ GLOBAL', 'Métrique': '', 'Valeur': '' })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Total Collectes',
-        'Valeur': summary.total_collectes
-      })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Taux de Clôture',
-        'Valeur': formatPercent(summary.taux_cloture_moyen)
-      })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Taux de Recouvrement',
-        'Valeur': formatPercent(summary.taux_recouvrement_moyen)
-      })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Total Demandes',
-        'Valeur': summary.total_demandes
-      })
-    }
-
-    // Indicateurs Clés
-    if (indicateursCles?.indicateurs) {
-      data.push({ 'Catégorie': '', 'Métrique': '', 'Valeur': '' })
-      data.push({ 'Catégorie': 'INDICATEURS CLÉS', 'Métrique': '', 'Valeur': '' })
-      
-      data.push({
-        'Catégorie': 'Indicateurs',
-        'Métrique': 'Collectes - Taux Clôture',
-        'Valeur': formatPercent(indicateursCles.indicateurs.taux_cloture)
-      })
-      data.push({
-        'Catégorie': 'Indicateurs',
-        'Métrique': 'Collectes - Taux Recouvrement',
-        'Valeur': formatPercent(indicateursCles.indicateurs.taux_recouvrement)
-      })
-      data.push({
-        'Catégorie': 'Indicateurs',
-        'Métrique': 'Collectes - Durée Moyenne',
-        'Valeur': `${indicateursCles.indicateurs.duree_moyenne_collecte?.toFixed(0) || 0} jours`
-      })
-       data.push({
-        'Catégorie': 'Indicateurs',
-        'Métrique': 'Attributions - Taux Approbation',
-        'Valeur': formatPercent(indicateursCles.indicateurs.taux_approbation)
-      })
-    }
-
-    // Performance Collectes
-    if (performanceCollectes?.global) {
-        data.push({ 'Catégorie': '', 'Métrique': '', 'Valeur': '' })
-        data.push({ 'Catégorie': 'PERFORMANCE COLLECTES', 'Métrique': '', 'Valeur': '' })
-        data.push({
-            'Catégorie': 'Collectes',
-            'Métrique': 'Total',
-            'Valeur': performanceCollectes.global.total_collectes
-        })
-        data.push({
-            'Catégorie': 'Collectes',
-            'Métrique': 'Clôturées',
-            'Valeur': performanceCollectes.global.total_cloturees
-        })
-         data.push({
-            'Catégorie': 'Collectes',
-            'Métrique': 'Ouvertes',
-            'Valeur': performanceCollectes.global.total_ouvertes
-        })
-    }
-
-    return data
-  }
 
   return (
     <div className="space-y-8">
-      {/* Header Principal */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Performance Opérationnelle</h2>
-        <ExportButton 
-          data={prepareExportData()} 
-          filename="dashboard_operationnel"
-          title="Dashboard Opérationnel"
-          showPDF={true}
-          showExcel={true}
-          showCSV={true}
-        />
       </div>
 
       {/* KPIs Principaux */}
