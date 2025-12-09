@@ -91,6 +91,7 @@ export default function Portefeuille() {
     return colors[segment] || '#64748b'
   }
 
+
   return (
     <div className="space-y-8">
       {/* En-tête avec bouton */}
@@ -99,14 +100,16 @@ export default function Portefeuille() {
           <h2 className="text-3xl font-bold text-gray-900">Portefeuille Clients</h2>
           <p className="text-gray-600 mt-1">Analyse et segmentation du portefeuille</p>
         </div>
-        <Link
-          to="/clients"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Users className="w-5 h-5" />
-          Liste des Clients
-          <ExternalLink className="w-4 h-4" />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/clients"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Users className="w-5 h-5" />
+            Liste des Clients
+            <ExternalLink className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* KPIs Principaux - ONLY unique client metrics */}

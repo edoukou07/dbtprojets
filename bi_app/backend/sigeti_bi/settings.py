@@ -347,6 +347,11 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.Em
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')  # SMTP server host
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))  # SMTP server port
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'  # Use TLS
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # SMTP username/email
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
+if EMAIL_USE_SSL:
+    EMAIL_USE_TLS = False  # éviter TLS+SSL simultanés
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 30)) or None
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'manubento44@gmail.com')  # SMTP username/email
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # SMTP password
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@sigeti-bi.local')  # Sender email
+EMAIL_FILE_PATH = os.getenv('EMAIL_FILE_PATH', str(BASE_DIR / 'tmp' / 'emails'))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'manubento44@gmail.com')  # Sender email

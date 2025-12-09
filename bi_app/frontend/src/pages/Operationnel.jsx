@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { operationnelAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
@@ -86,8 +87,14 @@ export default function Operationnel() {
     return new Intl.NumberFormat('fr-FR').format(value)
   }
 
+
   return (
     <div className="space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Performance Opérationnelle</h2>
+      </div>
+
       {/* KPIs Principaux */}
       <section>
         <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">

@@ -12,15 +12,113 @@ from analytics.models import (
     UserDashboardPermission,
     ReportSchedule
 )
+from .models import SMTPConfiguration
 
 
 class ReportScheduleSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    dashboards = serializers.ListField(
+        child=serializers.ChoiceField(choices=ReportSchedule.DASHBOARD_CHOICES),
+        required=False,
+        allow_empty=False,
+        help_text="Liste des dashboards à inclure dans le rapport"
+    )
     
     class Meta:
         model = ReportSchedule
-        fields = ['id', 'name', 'dashboard', 'scheduled_at', 'recipients', 'created_by', 'created_by_username', 'created_at', 'sent', 'sent_at']
+        fields = ['id', 'name', 'dashboard', 'dashboards', 'scheduled_at', 'recipients', 'created_by', 'created_by_username', 'created_at', 'sent', 'sent_at']
         read_only_fields = ['id', 'created_by', 'created_at', 'sent', 'sent_at']
+    
+    def validate(self, data):
+        """Valide que soit dashboard soit dashboards est fourni"""
+        dashboards = data.get('dashboards', [])
+        dashboard = data.get('dashboard')
+        
+        # Si dashboards est fourni et non vide, on l'utilise
+        if dashboards and len(dashboards) > 0:
+            return data
+        
+        # Sinon, si dashboard est fourni (compatibilité ascendante), on le convertit en liste
+        if dashboard:
+            data['dashboards'] = [dashboard]
+            return data
+        
+        # Si aucun n'est fourni, on retourne une erreur
+        raise serializers.ValidationError("Vous devez sélectionner au moins un dashboard (champ 'dashboards' ou 'dashboard').")
+    
+    def create(self, validated_data):
+        """Crée un nouveau rapport avec gestion de la compatibilité"""
+        dashboards = validated_data.pop('dashboards', [])
+        dashboard = validated_data.pop('dashboard', None)
+        
+        # Si dashboards est vide mais dashboard existe, on utilise dashboard
+        if not dashboards and dashboard:
+            dashboards = [dashboard]
+        
+        # Si dashboards est toujours vide, on utilise une valeur par défaut
+        if not dashboards:
+            dashboards = ['financier']
+        
+        validated_data['dashboards'] = dashboards
+        # On garde aussi dashboard pour la compatibilité (premier élément)
+        if not validated_data.get('dashboard'):
+            validated_data['dashboard'] = dashboards[0] if dashboards else None
+        
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        """Met à jour un rapport existant"""
+        dashboards = validated_data.pop('dashboards', None)
+        dashboard = validated_data.pop('dashboard', None)
+        
+        # Si dashboards est fourni, on l'utilise
+        if dashboards is not None:
+            if len(dashboards) == 0:
+                raise serializers.ValidationError("Vous devez sélectionner au moins un dashboard.")
+            instance.dashboards = dashboards
+            # On met à jour aussi dashboard pour la compatibilité
+            instance.dashboard = dashboards[0]
+        elif dashboard is not None:
+            # Compatibilité ascendante : si seul dashboard est fourni
+            instance.dashboards = [dashboard]
+            instance.dashboard = dashboard
+        
+        return super().update(instance, validated_data)
+
+
+class SMTPConfigurationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = SMTPConfiguration
+        fields = [
+            'id',
+            'name',
+            'backend',
+            'host',
+            'port',
+            'use_tls',
+            'use_ssl',
+            'username',
+            'password',
+            'default_from_email',
+            'timeout',
+            'is_active',
+            'last_tested_at',
+            'last_test_status',
+            'last_error',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'last_tested_at', 'last_test_status', 'last_error', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        """Empêche l'activation simultanée de TLS et SSL."""
+        use_tls = attrs.get('use_tls', getattr(self.instance, 'use_tls', False))
+        use_ssl = attrs.get('use_ssl', getattr(self.instance, 'use_ssl', False))
+        if use_tls and use_ssl:
+            raise serializers.ValidationError("TLS et SSL ne peuvent pas être activés simultanément.")
+        return super().validate(attrs)
 
 
 class MartPerformanceFinanciereSerializer(serializers.ModelSerializer):

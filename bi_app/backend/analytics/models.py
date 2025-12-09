@@ -274,7 +274,8 @@ class ReportSchedule(models.Model):
     ]
 
     name = models.CharField(max_length=255)
-    dashboard = models.CharField(max_length=50, choices=DASHBOARD_CHOICES)
+    dashboard = models.CharField(max_length=50, choices=DASHBOARD_CHOICES, null=True, blank=True)  # Deprecated, kept for backward compatibility
+    dashboards = models.JSONField(default=list, help_text="Liste des dashboards à inclure dans le rapport")
     scheduled_at = models.DateTimeField()
     recipients = models.TextField(null=True, blank=True, help_text="Emails séparés par des virgules")
     created_by = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL)
@@ -286,8 +287,17 @@ class ReportSchedule(models.Model):
         managed = True
         db_table = 'bi_report_schedules'
 
+    def get_dashboards_list(self):
+        """Retourne la liste des dashboards, avec fallback sur l'ancien champ dashboard si dashboards est vide"""
+        if self.dashboards and len(self.dashboards) > 0:
+            return self.dashboards
+        elif self.dashboard:
+            return [self.dashboard]
+        return []
+
     def __str__(self):
-        return f"Report {self.name} -> {self.dashboard} @ {self.scheduled_at}"
+        dashboards_str = ', '.join(self.get_dashboards_list()) if self.get_dashboards_list() else 'Aucun'
+        return f"Report {self.name} -> {dashboards_str} @ {self.scheduled_at}"
 
 
 class UserDashboardPermission(models.Model):

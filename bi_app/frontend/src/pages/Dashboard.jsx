@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { DollarSign, Building2, Users, Activity, TrendingUp, TrendingDown } from 'lucide-react'
+import axios from 'axios'
 import { financierAPI, occupationAPI, clientsAPI, operationnelAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
 import ExportButton from '../components/ExportButton'
 import AlertsPanel from '../components/AlertsPanel'
+
+const API_URL = 'http://localhost:8000/api'
 
 export default function Dashboard() {
   const { data: financierData, isLoading: financierLoading } = useQuery({
@@ -30,6 +34,7 @@ export default function Dashboard() {
     staleTime: 5000, // Réduit à 5 secondes pour un refresh plus rapide
   })
 
+
   const formatCurrency = (value) => {
     if (!value) return '0 FCFA'
     return new Intl.NumberFormat('fr-FR', {
@@ -44,7 +49,8 @@ export default function Dashboard() {
     return value.toFixed(1) + '%'
   }
 
-  // Préparer les données pour l'export
+
+  // Préparer les données pour l'export CSV/Excel
   const exportData = [
     { Indicateur: 'CA Facturé', Valeur: financierData?.ca_total || 0, Unité: 'FCFA' },
     { Indicateur: 'CA Payé', Valeur: financierData?.ca_paye || 0, Unité: 'FCFA' },
@@ -73,14 +79,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Export Button */}
+      {/* Header with Export Buttons */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Tableau de Bord Général</h2>
-        <ExportButton 
-          data={exportData}
-          filename="dashboard_sigeti"
-          title="Tableau de Bord SIGETI - Synthèse Générale"
-        />
+        <div className="flex gap-3">
+          <ExportButton 
+            data={exportData}
+            filename="dashboard_sigeti"
+            title="Tableau de Bord SIGETI - Synthèse Générale"
+          />
+        </div>
       </div>
 
       {/* Alerts Panel */}

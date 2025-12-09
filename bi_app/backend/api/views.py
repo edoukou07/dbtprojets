@@ -2,7 +2,8 @@
 API Views for SIGETI BI
 """
 from datetime import datetime
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Avg, Count, Q, F, ExpressionWrapper, IntegerField
 from django.db.models.functions import Extract
@@ -23,16 +24,94 @@ from .serializers import (
     MartPortefeuilleClientsSerializer,
     MartKPIOperationnelsSerializer,
     AlertSerializer,
-    AlertThresholdSerializer
+    AlertThresholdSerializer,
+    ReportScheduleSerializer,
+    SMTPConfigurationSerializer,
 )
-from .serializers import ReportScheduleSerializer
 from analytics.models import ReportSchedule
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage, get_connection
 from django.conf import settings
 import csv
 import io
 from django.utils import timezone
 from .cache_decorators import cache_api_response
+from django.db.utils import OperationalError, ProgrammingError
+from .models import SMTPConfiguration
+
+try:
+    # Utilisé pour générer les PDF avec graphiques
+    import matplotlib
+    matplotlib.use("Agg")  # backend non interactif, évite Tkinter/GUI
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+    from matplotlib.patches import FancyBboxPatch, Circle
+    MATPLOTLIB_AVAILABLE = True
+except Exception:  # pragma: no cover - environnement sans matplotlib
+    MATPLOTLIB_AVAILABLE = False
+
+
+def _base_email_settings():
+    """Retourne la configuration SMTP définie dans les settings Django."""
+    return {
+        'backend': getattr(settings, 'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'),
+        'host': getattr(settings, 'EMAIL_HOST', ''),
+        'port': getattr(settings, 'EMAIL_PORT', 25),
+        'username': getattr(settings, 'EMAIL_HOST_USER', ''),
+        'password': getattr(settings, 'EMAIL_HOST_PASSWORD', ''),
+        'use_tls': getattr(settings, 'EMAIL_USE_TLS', False),
+        'use_ssl': getattr(settings, 'EMAIL_USE_SSL', False),
+        'timeout': getattr(settings, 'EMAIL_TIMEOUT', None),
+        'default_from_email': getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com'),
+    }
+
+
+def get_effective_email_settings():
+    """
+    Combine les settings Django avec la configuration SMTP active (si disponible).
+    Retourne un tuple (config_dict, source, instance).
+    """
+    config_dict = _base_email_settings()
+    source = 'settings'
+    instance = None
+    try:
+        instance = SMTPConfiguration.get_active()
+    except (OperationalError, ProgrammingError):
+        instance = None
+
+    if instance:
+        overrides = instance.as_connection_kwargs()
+        for key, value in overrides.items():
+            if value is not None:
+                config_dict[key] = value
+        source = 'database'
+
+    return config_dict, source, instance
+
+
+def build_email_connection():
+    """
+    Construit une connexion SMTP prête à l'emploi ainsi que l'email expéditeur.
+    """
+    config_dict, source, instance = get_effective_email_settings()
+
+    connection = get_connection(
+        backend=config_dict['backend'],
+        host=config_dict['host'] or None,
+        port=config_dict['port'],
+        username=config_dict['username'] or None,
+        password=config_dict['password'] or None,
+        use_tls=config_dict['use_tls'],
+        use_ssl=config_dict['use_ssl'],
+        timeout=config_dict['timeout'],
+    )
+    from_email = config_dict['default_from_email'] or settings.DEFAULT_FROM_EMAIL
+
+    return {
+        'connection': connection,
+        'from_email': from_email,
+        'source': source,
+        'instance': instance,
+    }
 
 
 class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1663,75 +1742,1543 @@ class ReportScheduleViewSet(viewsets.ModelViewSet):
         # Keep existing created_by when updating
         serializer.save()
 
+    @action(detail=False, methods=['post'])
+    def send_scheduled(self, request):
+        """
+        Envoie automatiquement tous les rapports programmés dont la date/heure est arrivée.
+        Cette action peut être appelée manuellement ou par un scheduler.
+        """
+        now = timezone.now()
+        scheduled_reports = ReportSchedule.objects.filter(
+            scheduled_at__lte=now,
+            sent=False
+        ).order_by('scheduled_at')
+        
+        if not scheduled_reports.exists():
+            return Response({
+                'success': True,
+                'message': 'Aucun rapport programmé à envoyer',
+                'sent_count': 0
+            })
+        
+        # Utiliser la logique du management command
+        sent_count = 0
+        failed_count = 0
+        errors = []
+        
+        for report in scheduled_reports:
+            try:
+                recipients = [r.strip() for r in (report.recipients or '').split(',') if r.strip()]
+                if not recipients:
+                    continue
+                
+                dashboards_list = report.get_dashboards_list()
+                mail_ctx = build_email_connection()
+                
+                try:
+                    connection = mail_ctx['connection']
+                    
+                    if len(dashboards_list) > 1:
+                        subject = f"SIGETI - Report: {report.name}"
+                        body = f"Veuillez trouver ci-joints les rapports PDF pour les tableaux de bord suivants : {', '.join(dashboards_list)}."
+                        
+                        msg = EmailMessage(
+                            subject=subject,
+                            body=body,
+                            from_email=mail_ctx['from_email'],
+                            to=recipients,
+                            connection=connection,
+                        )
+                        
+                        for dashboard in dashboards_list:
+                            pdf_bytes = generate_dashboard_report_pdf(dashboard)
+                            filename = f"report_{dashboard}_{report.id}.pdf"
+                            msg.attach(filename, pdf_bytes, 'application/pdf')
+                    else:
+                        dashboard = dashboards_list[0] if dashboards_list else report.dashboard
+                        pdf_bytes = generate_dashboard_report_pdf(dashboard)
+                        
+                        subject = f"SIGETI - Report: {report.name}"
+                        body = f"Veuillez trouver ci-joint le rapport PDF pour le tableau de bord '{dashboard}'."
+                        
+                        msg = EmailMessage(
+                            subject=subject,
+                            body=body,
+                            from_email=mail_ctx['from_email'],
+                            to=recipients,
+                            connection=connection,
+                        )
+                        
+                        filename = f"report_{dashboard}_{report.id}.pdf"
+                        msg.attach(filename, pdf_bytes, 'application/pdf')
+                    
+                    msg.send()
+                    report.sent = True
+                    report.sent_at = timezone.now()
+                    if mail_ctx['instance']:
+                        mail_ctx['instance'].mark_test_result(True)
+                    sent_count += 1
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Erreur lors de l'envoi du rapport {report.id}: {str(e)}")
+                    report.sent = True  # Marquer comme envoyé pour éviter les tentatives infinies
+                    report.sent_at = timezone.now()
+                    failed_count += 1
+                    errors.append(f"Rapport {report.id} ({report.name}): {str(e)}")
+                
+                report.save()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Erreur lors du traitement du rapport {report.id}: {str(e)}")
+                failed_count += 1
+                errors.append(f"Rapport {report.id}: {str(e)}")
+        
+        return Response({
+            'success': True,
+            'message': f'{sent_count} rapport(s) envoyé(s) avec succès',
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'errors': errors if errors else None
+        })
+
     @action(detail=True, methods=['post'])
     def send_now(self, request, pk=None):
         schedule = self.get_object()
         recipients = [r.strip() for r in (schedule.recipients or '').split(',') if r.strip()]
 
-        # Generate a simple CSV summary for the requested dashboard
-        csv_content = generate_dashboard_report_csv(schedule.dashboard)
+        if not recipients:
+            return Response(
+                {
+                    'success': False,
+                    'message': "Aucun destinataire n'a été défini pour ce rapport.",
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Génération du rapport au format PDF avec graphiques
+        dashboards_list = schedule.get_dashboards_list()
+        
         # Send email with error handling
-        subject = f"SIGETI - Report: {schedule.name}"
-        body = f"Report {schedule.name} for dashboard {schedule.dashboard} attached."
+        mail_ctx = build_email_connection()
 
         try:
-            msg = EmailMessage(subject=subject, body=body, to=recipients or None)
-            msg.attach(f"report_{schedule.dashboard}_{schedule.id}.csv", csv_content, 'text/csv')
+            connection = mail_ctx['connection']
+            
+            # Vérifier si des PDFs sont envoyés depuis le frontend (react-pdf)
+            pdfs_from_frontend = {}
+            if request.FILES:
+                # Les PDFs sont envoyés avec des noms comme "pdf_dashboard", "pdf_financier", etc.
+                for key, file in request.FILES.items():
+                    if key.startswith('pdf_'):
+                        dashboard_name = key.replace('pdf_', '')
+                        pdfs_from_frontend[dashboard_name] = file.read()
+            
+            # Générer un PDF séparé pour chaque dashboard
+            if len(dashboards_list) > 1:
+                # Plusieurs dashboards : envoyer plusieurs PDFs séparés
+                subject = f"SIGETI - Report: {schedule.name}"
+                body = f"Veuillez trouver ci-joints les rapports PDF pour les tableaux de bord suivants : {', '.join(dashboards_list)}."
+                
+                msg = EmailMessage(
+                    subject=subject,
+                    body=body,
+                    from_email=mail_ctx['from_email'],
+                    to=recipients,
+                    connection=connection,
+                )
+                
+                # Attacher un PDF pour chaque dashboard
+                for dashboard in dashboards_list:
+                    # Utiliser le PDF du frontend si disponible, sinon générer avec matplotlib
+                    if dashboard in pdfs_from_frontend:
+                        pdf_bytes = pdfs_from_frontend[dashboard]
+                    else:
+                        pdf_bytes = generate_dashboard_report_pdf(dashboard)
+                    filename = f"report_{dashboard}_{schedule.id}.pdf"
+                    msg.attach(
+                        filename,
+                        pdf_bytes,
+                        'application/pdf',
+                    )
+            else:
+                # Un seul dashboard : envoyer un seul PDF
+                dashboard = dashboards_list[0] if dashboards_list else schedule.dashboard
+                
+                # Utiliser le PDF du frontend si disponible, sinon générer avec matplotlib
+                if dashboard in pdfs_from_frontend:
+                    pdf_bytes = pdfs_from_frontend[dashboard]
+                elif pdfs_from_frontend and len(pdfs_from_frontend) > 0:
+                    # Si un seul PDF est envoyé sans nom spécifique
+                    pdf_bytes = list(pdfs_from_frontend.values())[0]
+                else:
+                    pdf_bytes = generate_dashboard_report_pdf(dashboard)
+                
+                subject = f"SIGETI - Report: {schedule.name}"
+                body = f"Veuillez trouver ci-joint le rapport PDF pour le tableau de bord '{dashboard}'."
+                
+                msg = EmailMessage(
+                    subject=subject,
+                    body=body,
+                    from_email=mail_ctx['from_email'],
+                    to=recipients,
+                    connection=connection,
+                )
+                
+                filename = f"report_{dashboard}_{schedule.id}.pdf"
+                msg.attach(
+                    filename,
+                    pdf_bytes,
+                    'application/pdf',
+                )
+            
             msg.send()
             email_status = 'sent'
         except Exception as e:
-            # Log the error but continue anyway (SMTP not configured)
+            # Log the error mais on remonte l'info au client
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Email sending failed for report {schedule.id}: {str(e)}")
+            if mail_ctx['instance']:
+                mail_ctx['instance'].mark_test_result(False, str(e))
             email_status = 'failed'
 
-        schedule.sent = True
-        schedule.sent_at = timezone.now()
+        if email_status == 'sent':
+            schedule.sent = True
+            schedule.sent_at = timezone.now()
+            if mail_ctx['instance']:
+                mail_ctx['instance'].mark_test_result(True)
+
         schedule.save()
 
         return Response({
             'success': True, 
             'sent_to': recipients,
             'email_status': email_status,
-            'message': 'Rapport marqué comme envoyé' if email_status == 'failed' else 'Rapport envoyé avec succès'
+            'smtp_source': mail_ctx['source'],
+            'message': 'Rapport envoyé avec succès' if email_status == 'sent' else "Échec de l'envoi du rapport"
         })
 
 
+class SMTPConfigurationViewSet(viewsets.ModelViewSet):
+    """CRUD + diagnostics pour la configuration SMTP."""
+
+    queryset = SMTPConfiguration.objects.all().order_by('-updated_at')
+    serializer_class = SMTPConfigurationSerializer
+    permission_classes = [IsAdminUser]
+
+    def _ensure_single_active(self, instance):
+        """Désactive les autres configurations actives."""
+        if instance.is_active:
+            SMTPConfiguration.objects.exclude(pk=instance.pk).update(is_active=False)
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._ensure_single_active(instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        self._ensure_single_active(instance)
+
+    @action(detail=False, methods=['get'])
+    def status(self, request):
+        config_dict, source, instance = get_effective_email_settings()
+        return Response({
+            'source': source,
+            'active_configuration_id': instance.id if instance else None,
+            'host': config_dict['host'],
+            'port': config_dict['port'],
+            'use_tls': config_dict['use_tls'],
+            'use_ssl': config_dict['use_ssl'],
+            'default_from_email': config_dict['default_from_email'],
+            'last_test_status': instance.last_test_status if instance else 'unknown',
+            'last_tested_at': instance.last_tested_at if instance else None,
+        })
+
+    @action(detail=False, methods=['post'])
+    def test(self, request):
+        """Envoie un email de test vers l'adresse fournie."""
+        to_email = request.data.get('to') or request.user.email or settings.DEFAULT_FROM_EMAIL
+        subject = request.data.get('subject', 'Test SMTP SIGETI BI')
+        message = request.data.get('message', "Ceci est un email de test envoyé par SIGETI BI.")
+
+        mail_ctx = build_email_connection()
+
+        try:
+            msg = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=mail_ctx['from_email'],
+                to=[to_email],
+                connection=mail_ctx['connection'],
+            )
+            msg.send()
+            if mail_ctx['instance']:
+                mail_ctx['instance'].mark_test_result(True)
+            return Response({
+                'success': True,
+                'message': f'Email de test envoyé à {to_email}',
+                'source': mail_ctx['source'],
+            })
+        except Exception as exc:
+            if mail_ctx['instance']:
+                mail_ctx['instance'].mark_test_result(False, str(exc))
+            return Response({
+                'success': False,
+                'message': str(exc),
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 def generate_dashboard_report_csv(dashboard):
-    """Generate a basic CSV for selected dashboard; returns bytes."""
+    """
+    Ancienne génération CSV – conservée pour debug éventuel.
+    """
     output = io.StringIO()
     writer = csv.writer(output)
-
-    if dashboard == 'financier':
-        from analytics.models import MartPerformanceFinanciere
-        summary = MartPerformanceFinanciere.objects.aggregate(
-            total_factures=Sum('nombre_factures'),
-            ca_total=Sum('montant_total_facture'),
-            ca_paye=Sum('montant_paye'),
-            ca_impaye=Sum('montant_impaye')
-        )
-        writer.writerow(['Indicateur', 'Valeur'])
-        for k, v in summary.items():
-            writer.writerow([k, v])
-    elif dashboard == 'occupation':
-        from analytics.models import MartOccupationZones
-        rows = MartOccupationZones.objects.values('nom_zone').annotate(total=Sum('nombre_total_lots'))[:100]
-        writer.writerow(['Zone', 'Nombre total lots'])
-        for r in rows:
-            writer.writerow([r['nom_zone'], r['total']])
-    else:
-        writer.writerow(['message'])
-        writer.writerow(['Dashboard report not implemented - choose Financier or Occupation'])
-
+    writer.writerow(['message'])
+    writer.writerow(['Ce rapport est maintenant généré en PDF avec graphiques.'])
     return output.getvalue().encode('utf-8')
 
 
-# User Management ViewSet
+def generate_dashboard_report_pdf(dashboard: str) -> bytes:
+    """
+    Génère un PDF avec graphiques simplifiés pour le tableau de bord demandé.
+
+    - 'dashboard'     : synthèse générale (financier + occupation + clients + opérationnel)
+    - 'financier'     : CA, top zones, tendances
+    - 'occupation'    : top zones par lots
+    - 'clients'       : segmentation et risque clients
+    - 'operationnel'  : performance collectes / attributions / facturation
+    - 'alerts'        : répartition et historique des alertes
+    - autres          : message générique
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        # Fallback très simple : PDF texte sans graph si matplotlib absent
+        buffer = io.BytesIO()
+        from reportlab.lib.pagesizes import A4  # type: ignore
+        from reportlab.pdfgen import canvas    # type: ignore
+
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(72, height - 72, f"Rapport SIGETI - {dashboard}")
+        c.setFont("Helvetica", 12)
+        c.drawString(72, height - 110, "Les graphiques détaillés nécessitent Matplotlib sur le serveur.")
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    buffer = io.BytesIO()
+    with PdfPages(buffer) as pdf:
+        # Page 1 : Titre
+        fig, ax = plt.subplots(figsize=(8.27, 11.69))  # A4 portrait
+        ax.axis('off')
+        ax.text(
+            0.5,
+            0.8,
+            f"Rapport SIGETI - Tableau de bord : {dashboard}",
+            ha='center',
+            fontsize=18,
+            weight='bold',
+        )
+        ax.text(
+            0.5,
+            0.7,
+            f"Généré le {timezone.now().strftime('%d/%m/%Y %H:%M')}",
+            ha='center',
+            fontsize=11,
+        )
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # Page 2+ : contenu spécifique à chaque tableau
+        if dashboard == 'dashboard':
+            # Tableau de bord général : on assemble quelques KPIs clés
+            from analytics.models import (
+                MartPerformanceFinanciere,
+                MartOccupationZones,
+                MartKPIOperationnels,
+            )
+
+            # Helpers
+            def _fmt_int(value: float) -> str:
+                return f"{value:,.0f}".replace(",", " ")
+
+            def _fmt_pct(value: float) -> str:
+                return f"{value:.1f}%"
+
+            # --- Bloc Financier (aligne avec les 4 cartes du dashboard) ---
+            fin_summary = MartPerformanceFinanciere.objects.aggregate(
+                ca_total=Sum('montant_total_facture'),
+                ca_paye=Sum('montant_paye'),
+                ca_impaye=Sum('montant_impaye'),
+                taux_paiement_moyen=Avg('taux_paiement_pct'),
+            )
+            ca_total = float(fin_summary.get('ca_total') or 0)
+            ca_paye = float(fin_summary.get('ca_paye') or 0)
+            ca_impaye = float(fin_summary.get('ca_impaye') or 0)
+            # Si le champ d'agrégat n'est pas fiable, on recalcule un taux global
+            if ca_total:
+                taux_paiement = (ca_paye / ca_total) * 100.0
+            else:
+                taux_paiement = float(fin_summary.get('taux_paiement_moyen') or 0)
+
+            # --- Bloc Occupation des Zones ---
+            occ_summary = MartOccupationZones.objects.aggregate(
+                total_lots=Sum('nombre_total_lots'),
+                lots_disponibles=Sum('lots_disponibles'),
+                lots_attribues=Sum('lots_attribues'),
+            )
+            total_lots = float(occ_summary.get('total_lots') or 0)
+            lots_disponibles = float(occ_summary.get('lots_disponibles') or 0)
+            lots_attribues = float(occ_summary.get('lots_attribues') or 0)
+            taux_occupation = (lots_attribues / total_lots * 100.0) if total_lots else 0.0
+
+            # --- Bloc Opérationnel : on aligne sur les 4 cartes du dashboard ---
+            # On évite d'agréger les champs de durée (timedelta) pour ne pas casser les agrégats.
+            op_summary = MartKPIOperationnels.objects.aggregate(
+                total_collectes=Sum('nombre_collectes'),
+                total_demandes=Sum('nombre_demandes'),
+                taux_approbation_moyen=Avg('taux_approbation_pct'),
+                taux_recouvrement_global=Avg('taux_recouvrement_global_pct'),
+            )
+            total_collectes = float(op_summary.get('total_collectes') or 0)
+            total_demandes = float(op_summary.get('total_demandes') or 0)
+            taux_approbation = float(op_summary.get('taux_approbation_moyen') or 0)
+            taux_recouvrement = float(op_summary.get('taux_recouvrement_global') or 0)
+
+            # Page 2 : synthèse structurée comme le dashboard
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            ax.axis('off')
+
+            text_lines = [
+                "Synthèse Générale SIGETI",
+                "",
+                "Performance Financière",
+                f" - CA Facturé : {_fmt_int(ca_total)} FCFA",
+                f" - CA Payé : {_fmt_int(ca_paye)} FCFA",
+                f" - Créances : {_fmt_int(ca_impaye)} FCFA",
+                f" - Taux de Paiement : {_fmt_pct(taux_paiement)}",
+                "",
+                "Occupation des Zones",
+                f" - Total Lots : {_fmt_int(total_lots)}",
+                f" - Lots Disponibles : {_fmt_int(lots_disponibles)}",
+                f" - Lots Attribués : {_fmt_int(lots_attribues)}",
+                f" - Taux d'Occupation : {_fmt_pct(taux_occupation)}",
+                "",
+                "Performance Opérationnelle",
+                f" - Collectes : {_fmt_int(total_collectes)}",
+                f" - Demandes : {_fmt_int(total_demandes)}",
+                f" - Taux Approbation : {_fmt_pct(taux_approbation)}",
+                f" - Taux Recouvrement : {_fmt_pct(taux_recouvrement)}",
+            ]
+
+            y = 0.85
+            for line in text_lines:
+                ax.text(0.1, y, line, fontsize=11, va='top')
+                y -= 0.05
+
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        elif dashboard == 'financier':
+            from analytics.models import MartPerformanceFinanciere
+
+            summary = MartPerformanceFinanciere.objects.aggregate(
+                total_factures=Sum('nombre_factures'),
+                ca_total=Sum('montant_total_facture'),
+                ca_paye=Sum('montant_paye'),
+                ca_impaye=Sum('montant_impaye'),
+                montant_recouvre=Sum('montant_total_recouvre'),
+                montant_a_recouvrer=Sum('montant_total_a_recouvrer'),
+                taux_recouvrement=Avg('taux_recouvrement_moyen'),
+                collectes=Sum('nombre_collectes'),
+            )
+
+            ca_total = float(summary.get('ca_total') or 0)
+            ca_paye = float(summary.get('ca_paye') or 0)
+            ca_impaye = float(summary.get('ca_impaye') or 0)
+            montant_recouvre = float(summary.get('montant_recouvre') or 0)
+            montant_a_recouvrer = float(summary.get('montant_a_recouvrer') or 0)
+            taux_recouvrement = float(summary.get('taux_recouvrement') or 0)
+            total_factures = int(summary.get('total_factures') or 0)
+            total_collectes = int(summary.get('collectes') or 0)
+
+            def _fmt_currency_short(value: float) -> str:
+                abs_v = abs(value)
+                if abs_v >= 1_000_000_000:
+                    return f"{value / 1_000_000_000:.1f} Md FCFA"
+                if abs_v >= 1_000_000:
+                    return f"{value / 1_000_000:.1f} M FCFA"
+                if abs_v >= 1_000:
+                    return f"{value / 1_000:.1f} K FCFA"
+                return f"{value:,.0f} FCFA"
+
+            # ---- Page 2 : Performance Financière et Analyse du Recouvrement (texte simple) ----
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis('off')
+
+            # Titre principal
+            ax.text(0.05, 0.95, "Performance Financière", fontsize=18, fontweight='bold', color='#111827', transform=ax.transAxes)
+            ax.text(0.05, 0.90, "Vue d'ensemble des indicateurs clés", fontsize=10, color='#6B7280', transform=ax.transAxes)
+
+            # Vue d'ensemble - affichage texte simple
+            y_pos = 0.82
+            overview_items = [
+                ("CA Facturé", _fmt_currency_short(ca_total), f"{ca_total:,.0f} FCFA"),
+                ("CA Payé", _fmt_currency_short(ca_paye), f"{ca_paye:,.0f} FCFA"),
+                ("Créances", _fmt_currency_short(ca_impaye), f"{ca_impaye:,.0f} FCFA"),
+                ("Nombre Factures", f"{total_factures}", "Factures émises"),
+            ]
+            for title, value, detail in overview_items:
+                ax.text(0.05, y_pos, f"{title}: {value}", fontsize=11, fontweight='bold', color='#111827', transform=ax.transAxes)
+                ax.text(0.05, y_pos - 0.04, detail, fontsize=9, color='#6B7280', transform=ax.transAxes)
+                y_pos -= 0.10
+
+            # Analyse du Recouvrement
+            ax.text(0.05, 0.45, "Analyse du Recouvrement", fontsize=18, fontweight='bold', color='#111827', transform=ax.transAxes)
+            ax.text(0.05, 0.40, "Focus sur les collectes et objectifs", fontsize=10, color='#6B7280', transform=ax.transAxes)
+
+            y_pos = 0.32
+            recovery_items = [
+                ("Montant Recouvré", _fmt_currency_short(montant_recouvre), f"{total_collectes} collectes"),
+                ("Taux de Recouvrement", f"{taux_recouvrement:.1f}%", "Sur créances totales"),
+                ("Montant à Recouvrer", _fmt_currency_short(montant_a_recouvrer), "Objectif collectif"),
+            ]
+            for title, value, detail in recovery_items:
+                ax.text(0.05, y_pos, f"{title}: {value}", fontsize=11, fontweight='bold', color='#111827', transform=ax.transAxes)
+                ax.text(0.05, y_pos - 0.04, detail, fontsize=9, color='#6B7280', transform=ax.transAxes)
+                y_pos -= 0.10
+
+            fig.tight_layout(pad=1.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 3 : Évolution mensuelle + Performance trimestrielle ----
+            tendances_mois = (
+                MartPerformanceFinanciere.objects
+                .values('annee', 'mois')
+                .annotate(
+                    ca_facture=Sum('montant_total_facture'),
+                    ca_paye=Sum('montant_paye'),
+                )
+                .order_by('annee', 'mois')
+            )
+            tendances_mois = list(tendances_mois)[-12:]
+            mois_labels = [f"{t['mois']}/{t['annee']}" for t in tendances_mois]
+            mois_ca = [float(t['ca_facture'] or 0) for t in tendances_mois]
+            mois_paye = [float(t['ca_paye'] or 0) for t in tendances_mois]
+            current_year = tendances_mois[-1]['annee'] if tendances_mois else timezone.now().year
+
+            tendances_tri = (
+                MartPerformanceFinanciere.objects
+                .values('annee', 'trimestre')
+                .annotate(
+                    ca_facture=Sum('montant_total_facture'),
+                    ca_paye=Sum('montant_paye'),
+                    ca_impaye=Sum('montant_impaye'),
+                )
+                .order_by('annee', 'trimestre')
+            )
+            tendances_tri = list(tendances_tri)
+            tri_labels = [f"T{t['trimestre']} {t['annee']}" for t in tendances_tri]
+            tri_facture = [float(t['ca_facture'] or 0) for t in tendances_tri]
+            tri_paye = [float(t['ca_paye'] or 0) for t in tendances_tri]
+            tri_impaye = [float(t['ca_impaye'] or 0) for t in tendances_tri]
+
+            fig, axes = plt.subplots(2, 1, figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+
+            # Évolution mensuelle
+            ax_month = axes[0]
+            ax_month.set_facecolor('#F9FAFB')
+            ax_month.fill_between(mois_labels, mois_ca, step='mid', alpha=0.2, color='#2563EB', label='CA facturé')
+            ax_month.plot(mois_labels, mois_ca, marker='o', markersize=4, linewidth=1.5, color='#2563EB')
+            ax_month.plot(mois_labels, mois_paye, marker='o', markersize=4, linewidth=1.5, color='#10B981', label='CA payé')
+            ax_month.set_title(f"Évolution Mensuelle {current_year}", fontsize=16, fontweight='bold')
+            ax_month.set_ylabel("Montant (FCFA)")
+            ax_month.yaxis.grid(True, linestyle='--', alpha=0.4)
+            ax_month.legend(loc='upper right', framealpha=0.9)  # Déplacé en haut à droite pour ne pas cacher les lignes
+            plt.setp(ax_month.get_xticklabels(), rotation=45, ha='right')
+
+            # Performance trimestrielle
+            ax_tri = axes[1]
+            ax_tri.set_facecolor('#F9FAFB')
+            if tri_labels:
+                x = range(len(tri_labels))
+                width = 0.25
+                bars1 = ax_tri.bar([i - width for i in x], tri_facture, width=width, label='CA facturé', color='#2563EB')
+                bars2 = ax_tri.bar(x, tri_paye, width=width, label='CA payé', color='#10B981')
+                bars3 = ax_tri.bar([i + width for i in x], tri_impaye, width=width, label='Créances', color='#F97316')
+                for bars in (bars1, bars2, bars3):
+                    for bar in bars:
+                        height = bar.get_height()
+                        if height <= 0:
+                            continue
+                        # Montant juste au-dessus de la barre (position d'origine)
+                        ax_tri.text(
+                            bar.get_x() + bar.get_width() / 2,
+                            height,
+                            f"{height:,.0f}",
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                        )
+                ax_tri.set_xticks(list(x))
+                ax_tri.set_xticklabels(tri_labels, rotation=45, ha='right')
+            else:
+                ax_tri.text(0.5, 0.5, "Aucune donnée trimestrielle disponible", ha='center', va='center')
+            ax_tri.set_title("Performance Trimestrielle", fontsize=16, fontweight='bold')
+            ax_tri.set_ylabel("Montant (FCFA)")
+            ax_tri.yaxis.grid(True, linestyle='--', alpha=0.4)
+            # Légende en bas à droite pour ne pas masquer les montants
+            ax_tri.legend(loc='lower right', framealpha=0.9)
+
+            fig.tight_layout(pad=2.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 4 : Top zones / Meilleurs payeurs / Zones à risque ----
+            qs_zones = list(
+                MartPerformanceFinanciere.objects
+                .values('nom_zone')
+                .annotate(
+                    ca_total=Sum('montant_total_facture'),
+                    ca_paye=Sum('montant_paye'),
+                    ca_impaye=Sum('montant_impaye'),
+                )
+                .exclude(nom_zone__isnull=True)
+            )
+
+            # Part de CA par zone (pour l'affichage "CA: 45.2%")
+            total_ca_zones = sum(float(z['ca_total'] or 0) for z in qs_zones) or 1.0
+            for z in qs_zones:
+                ca_val = float(z['ca_total'] or 0)
+                z['ca_share_pct'] = (ca_val / total_ca_zones * 100.0) if total_ca_zones else 0.0
+
+            def _taux_paiement(item):
+                ca_tot = float(item['ca_total'] or 0)
+                ca_pay = float(item['ca_paye'] or 0)
+                return (ca_pay / ca_tot * 100) if ca_tot else 0.0
+
+            top_ca = sorted(qs_zones, key=lambda x: float(x['ca_total'] or 0), reverse=True)[:3]
+            top_payeurs = sorted(qs_zones, key=_taux_paiement, reverse=True)[:3]
+            zones_risque_all = [z for z in qs_zones if _taux_paiement(z) < 70]
+            zones_risque = sorted(zones_risque_all, key=_taux_paiement)[:3]
+
+            # ---- Page 4 : tableau unique récapitulatif des zones ----
+            # Colonnes : Catégorie | Rang | Zone | CA | Part CA | Taux Paiement
+            combined_rows: list[list[str]] = []
+
+            # Top Zones par CA
+            for idx, e in enumerate(top_ca[:3], start=1):
+                zone = e['nom_zone'] or ''
+                ca_val = _fmt_currency_short(float(e['ca_total'] or 0))
+                part = f"{float(e.get('ca_share_pct', 0.0)):.1f}%"
+                taux = f"{_taux_paiement(e):.1f}%"
+                combined_rows.append(["Top CA", str(idx), zone, ca_val, part, taux])
+
+            # Meilleurs payeurs
+            for idx, e in enumerate(top_payeurs[:3], start=1):
+                zone = e['nom_zone'] or ''
+                ca_val = _fmt_currency_short(float(e['ca_total'] or 0))
+                part = f"{float(e.get('ca_share_pct', 0.0)):.1f}%"
+                taux = f"{_taux_paiement(e):.1f}%"
+                combined_rows.append(["Meilleur payeur", str(idx), zone, ca_val, part, taux])
+
+            # Zones à risque
+            for idx, e in enumerate(zones_risque[:3], start=1):
+                zone = e['nom_zone'] or ''
+                ca_val = _fmt_currency_short(float(e['ca_total'] or 0))
+                part = f"{float(e.get('ca_share_pct', 0.0)):.1f}%"
+                taux = f"{_taux_paiement(e):.1f}%"
+                combined_rows.append(["Zone à risque", str(idx), zone, ca_val, part, taux])
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.axis('off')
+
+            if combined_rows:
+                table = ax.table(
+                    cellText=combined_rows,
+                    colLabels=["Catégorie", "#", "Zone", "CA", "Part CA", "Taux paiement"],
+                    loc='center',
+                    cellLoc='left',
+                )
+                table.auto_set_font_size(False)
+                table.set_fontsize(9)
+                table.scale(1.2, 2.2)  # Augmenter l'espacement horizontal et vertical
+                
+                # Ajuster les largeurs de colonnes pour donner plus d'espace à "Zone"
+                num_rows = len(combined_rows) + 1  # +1 pour l'en-tête
+                num_cols = len(combined_rows[0]) if combined_rows else 6
+                
+                # Largeurs relatives des colonnes (somme = 1.0)
+                col_widths = [0.12, 0.04, 0.40, 0.15, 0.12, 0.17]  # Zone = 40%
+                
+                for row in range(num_rows):
+                    for col in range(num_cols):
+                        cell = table[(row, col)]
+                        # Ajuster la largeur de la cellule
+                        cell.set_width(col_widths[col])
+                        
+                        if row == 0:  # Ligne d'en-tête
+                            cell.set_text_props(weight='bold', fontsize=10)
+                        else:
+                            # Police plus grande pour la colonne Zone
+                            if col == 2:  # Colonne "Zone"
+                                cell.set_text_props(fontsize=10)
+                            else:
+                                cell.set_text_props(fontsize=9)
+                
+                ax.set_title("Synthèse Zones (CA, payeurs, risques)", fontsize=14, fontweight='bold', pad=12)
+            else:
+                ax.text(
+                    0.5,
+                    0.5,
+                    "Aucune donnée de zone disponible",
+                    ha='center',
+                    va='center',
+                    fontsize=11,
+                )
+
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        elif dashboard == 'occupation':
+            from analytics.models import MartOccupationZones
+
+            # ---- Page 2 : KPIs Principaux - Vue d'Ensemble ----
+            summary = MartOccupationZones.objects.aggregate(
+                nombre_zones=Count('zone_id', distinct=True),
+                total_lots=Sum('nombre_total_lots'),
+                lots_attribues=Sum('lots_attribues'),
+                lots_disponibles=Sum('lots_disponibles'),
+                lots_reserves=Sum('lots_reserves'),
+                superficie_totale=Sum('superficie_totale'),
+                superficie_attribuee=Sum('superficie_attribuee'),
+                superficie_disponible=Sum('superficie_disponible'),
+            )
+            
+            # Calcul du taux d'occupation moyen
+            total_lots = float(summary.get('total_lots') or 0)
+            lots_attribues = float(summary.get('lots_attribues') or 0)
+            taux_occupation_moyen = (lots_attribues / total_lots * 100) if total_lots > 0 else 0.0
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            ax.axis('off')
+            
+            # Titre
+            ax.text(0.5, 0.95, "Vue d'Ensemble - Occupation des Zones", 
+                   ha='center', fontsize=18, weight='bold', transform=ax.transAxes)
+            
+            # KPIs en grille
+            y_pos = 0.80
+            kpis = [
+                ('Zones Industrielles', summary.get('nombre_zones', 0), 'zones actives'),
+                ('Total Lots', summary.get('total_lots', 0), 'capacité totale'),
+                ('Lots Attribués', summary.get('lots_attribues', 0), f'{taux_occupation_moyen:.1f}% occupés'),
+                ('Lots Disponibles', summary.get('lots_disponibles', 0), 'prêts à l\'attribution'),
+            ]
+            
+            for i, (title, value, subtitle) in enumerate(kpis):
+                x_pos = 0.25 if i % 2 == 0 else 0.75
+                if i >= 2:
+                    y_pos = 0.50
+                
+                ax.text(x_pos, y_pos, title, ha='center', fontsize=14, weight='bold', 
+                       transform=ax.transAxes)
+                ax.text(x_pos, y_pos - 0.05, f"{value:,.0f}", ha='center', fontsize=20, 
+                       color='#2563EB', weight='bold', transform=ax.transAxes)
+                ax.text(x_pos, y_pos - 0.10, subtitle, ha='center', fontsize=10, 
+                       style='italic', color='gray', transform=ax.transAxes)
+            
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 3 : Statistiques de Surface ----
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            ax.axis('off')
+            
+            ax.text(0.5, 0.95, "Statistiques de Surface", 
+                   ha='center', fontsize=18, weight='bold', transform=ax.transAxes)
+            
+            surfaces = [
+                ('Superficie Totale', summary.get('superficie_totale', 0), 'm²', 'surface industrielle'),
+                ('Surface Attribuée', summary.get('superficie_attribuee', 0), 'm²', 'en exploitation'),
+                ('Surface Disponible', summary.get('superficie_disponible', 0), 'm²', 'disponible'),
+            ]
+            
+            y_start = 0.75
+            for i, (title, value, unit, subtitle) in enumerate(surfaces):
+                y_pos = y_start - (i * 0.20)
+                ax.text(0.5, y_pos, title, ha='center', fontsize=14, weight='bold', 
+                       transform=ax.transAxes)
+                ax.text(0.5, y_pos - 0.05, f"{float(value or 0):,.0f} {unit}", 
+                       ha='center', fontsize=18, color='#10B981', weight='bold', transform=ax.transAxes)
+                ax.text(0.5, y_pos - 0.10, subtitle, ha='center', fontsize=10, 
+                       style='italic', color='gray', transform=ax.transAxes)
+            
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 4 : Alertes d'Occupation ----
+            # Calculer zones saturées (>90%) et sous-occupées (<50%)
+            all_zones = MartOccupationZones.objects.all()
+            zones_saturees = 0
+            zones_faible_occupation = 0
+            
+            for zone in all_zones:
+                taux = float(zone.taux_occupation_pct or 0)
+                if taux >= 90:
+                    zones_saturees += 1
+                elif taux < 50:
+                    zones_faible_occupation += 1
+
+            fig, axes = plt.subplots(2, 1, figsize=(8.27, 11.69))
+            
+            # Taux d'occupation moyen (jauge)
+            axes[0].axis('off')
+            axes[0].text(0.5, 0.8, "Taux d'Occupation Moyen", 
+                        ha='center', fontsize=16, weight='bold', transform=axes[0].transAxes)
+            axes[0].text(0.5, 0.5, f"{taux_occupation_moyen:.1f}%", 
+                        ha='center', fontsize=48, weight='bold', 
+                        color='#2563EB' if taux_occupation_moyen < 50 else 
+                              '#F59E0B' if taux_occupation_moyen < 70 else 
+                              '#10B981' if taux_occupation_moyen < 90 else '#EF4444',
+                        transform=axes[0].transAxes)
+            
+            # Zones saturées et sous-occupées
+            axes[1].axis('off')
+            axes[1].text(0.5, 0.9, "Alertes d'Occupation", 
+                        ha='center', fontsize=16, weight='bold', transform=axes[1].transAxes)
+            
+            alertes_data = [
+                ('Zones Saturées', zones_saturees, 'Occupation > 90%', '#EF4444'),
+                ('Zones Sous-Occupées', zones_faible_occupation, 'Occupation < 50%', '#3B82F6'),
+            ]
+            
+            y_pos = 0.65
+            for title, value, subtitle, color in alertes_data:
+                axes[1].text(0.5, y_pos, title, ha='center', fontsize=14, weight='bold', 
+                            transform=axes[1].transAxes)
+                axes[1].text(0.5, y_pos - 0.08, f"{value}", ha='center', fontsize=32, 
+                            weight='bold', color=color, transform=axes[1].transAxes)
+                axes[1].text(0.5, y_pos - 0.15, subtitle, ha='center', fontsize=10, 
+                            style='italic', color='gray', transform=axes[1].transAxes)
+                y_pos -= 0.30
+            
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 5 : Top Zones par Nombre de Lots (graphique amélioré) ----
+            rows = (
+                MartOccupationZones.objects
+                .values('nom_zone')
+                .annotate(total=Sum('nombre_total_lots'))
+                .order_by('-total')[:10]
+            )
+
+            if rows:
+                labels = [r['nom_zone'] for r in rows]
+                values = [float(r['total'] or 0) for r in rows]
+
+                fig, ax = plt.subplots(figsize=(8.27, 11.69))
+                fig.patch.set_facecolor("white")
+                ax.set_facecolor("#F9FAFB")
+
+                ax.barh(labels, values, color='#2196F3')
+                ax.invert_yaxis()  # la zone avec le plus de lots en haut
+                ax.set_title("Top 10 Zones par Nombre Total de Lots", fontsize=16, fontweight='bold')
+                ax.set_xlabel("Nombre de lots", fontsize=12)
+                ax.xaxis.grid(True, linestyle='--', alpha=0.4)
+
+                for i, v in enumerate(values):
+                    ax.text(v, i, f"{v:,.0f}", va='center', ha='left', fontsize=9, fontweight='bold')
+
+                fig.tight_layout(pad=2.0)
+                pdf.savefig(fig)
+                plt.close(fig)
+
+            # ---- Page 6 : Zones les Plus Occupées ----
+            zones_plus_occupees = (
+                MartOccupationZones.objects
+                .exclude(taux_occupation_pct__isnull=True)
+                .order_by('-taux_occupation_pct')[:5]
+            )
+
+            if zones_plus_occupees:
+                labels = [z.nom_zone for z in zones_plus_occupees]
+                values = [float(z.taux_occupation_pct or 0) for z in zones_plus_occupees]
+
+                fig, ax = plt.subplots(figsize=(8.27, 11.69))
+                fig.patch.set_facecolor("white")
+                ax.set_facecolor("#F9FAFB")
+
+                colors = ['#EF4444' if v >= 90 else '#F59E0B' if v >= 70 else '#10B981' for v in values]
+                ax.barh(labels, values, color=colors)
+                ax.invert_yaxis()
+                ax.set_title("Top 5 Zones les Plus Occupées", fontsize=16, fontweight='bold')
+                ax.set_xlabel("Taux d'occupation (%)", fontsize=12)
+                ax.set_xlim(0, 100)
+                ax.xaxis.grid(True, linestyle='--', alpha=0.4)
+
+                for i, v in enumerate(values):
+                    ax.text(v, i, f"{v:.1f}%", va='center', ha='left', fontsize=10, fontweight='bold')
+
+                fig.tight_layout(pad=2.0)
+                pdf.savefig(fig)
+                plt.close(fig)
+
+            # ---- Page 7 : Zones les Moins Occupées ----
+            zones_moins_occupees = (
+                MartOccupationZones.objects
+                .exclude(taux_occupation_pct__isnull=True)
+                .order_by('taux_occupation_pct')[:5]
+            )
+
+            if zones_moins_occupees:
+                labels = [z.nom_zone for z in zones_moins_occupees]
+                values = [float(z.taux_occupation_pct or 0) for z in zones_moins_occupees]
+
+                fig, ax = plt.subplots(figsize=(8.27, 11.69))
+                fig.patch.set_facecolor("white")
+                ax.set_facecolor("#F9FAFB")
+
+                colors = ['#3B82F6' if v < 50 else '#10B981' if v < 70 else '#F59E0B' for v in values]
+                ax.barh(labels, values, color=colors)
+                ax.invert_yaxis()
+                ax.set_title("Top 5 Zones les Moins Occupées", fontsize=16, fontweight='bold')
+                ax.set_xlabel("Taux d'occupation (%)", fontsize=12)
+                ax.set_xlim(0, 100)
+                ax.xaxis.grid(True, linestyle='--', alpha=0.4)
+
+                for i, v in enumerate(values):
+                    ax.text(v, i, f"{v:.1f}%", va='center', ha='left', fontsize=10, fontweight='bold')
+
+                fig.tight_layout(pad=2.0)
+                pdf.savefig(fig)
+                plt.close(fig)
+
+            # ---- Page 8+ : Tableau Détaillé des Zones (par pages de 15 zones) ----
+            all_zones_detailed = (
+                MartOccupationZones.objects
+                .order_by('nom_zone')
+                .values('nom_zone', 'taux_occupation_pct', 'nombre_total_lots', 
+                       'lots_attribues', 'lots_disponibles', 'lots_reserves', 
+                       'superficie_totale')
+            )
+            
+            zones_list = list(all_zones_detailed)
+            zones_per_page = 15
+            
+            for page_idx in range(0, len(zones_list), zones_per_page):
+                page_zones = zones_list[page_idx:page_idx + zones_per_page]
+                
+                fig, ax = plt.subplots(figsize=(8.27, 11.69))
+                ax.axis('off')
+                
+                # Titre
+                ax.text(0.5, 0.98, f"Détails par Zone - Page {page_idx // zones_per_page + 1}", 
+                       ha='center', fontsize=16, weight='bold', transform=ax.transAxes)
+                
+                # En-têtes du tableau
+                headers = ['Zone', 'Taux Occ.', 'Lots Total', 'Attribués', 'Disponibles', 'Réservés', 'Superficie (m²)']
+                col_widths = [0.20, 0.12, 0.10, 0.10, 0.12, 0.10, 0.15]
+                x_positions = [0.05]
+                for i in range(1, len(headers)):
+                    x_positions.append(x_positions[i-1] + col_widths[i-1] + 0.02)
+                
+                y_start = 0.92
+                # En-têtes
+                for i, (header, x_pos) in enumerate(zip(headers, x_positions)):
+                    ax.text(x_pos, y_start, header, ha='left', fontsize=9, weight='bold', 
+                           transform=ax.transAxes)
+                
+                # Lignes de données
+                y_pos = y_start - 0.05
+                for zone in page_zones:
+                    if y_pos < 0.05:  # Nouvelle page si nécessaire
+                        pdf.savefig(fig)
+                        plt.close(fig)
+                        fig, ax = plt.subplots(figsize=(8.27, 11.69))
+                        ax.axis('off')
+                        y_pos = 0.92
+                    
+                    nom = zone['nom_zone'] or 'N/A'
+                    taux = float(zone['taux_occupation_pct'] or 0)
+                    total = int(zone['nombre_total_lots'] or 0)
+                    attribues = int(zone['lots_attribues'] or 0)
+                    disponibles = int(zone['lots_disponibles'] or 0)
+                    reserves = int(zone['lots_reserves'] or 0)
+                    superficie = float(zone['superficie_totale'] or 0)
+                    
+                    row_data = [
+                        nom[:20],  # Tronquer si trop long
+                        f"{taux:.1f}%",
+                        f"{total}",
+                        f"{attribues}",
+                        f"{disponibles}",
+                        f"{reserves}",
+                        f"{superficie:,.0f}" if superficie > 0 else "N/A"
+                    ]
+                    
+                    for i, (data, x_pos) in enumerate(zip(row_data, x_positions)):
+                        ax.text(x_pos, y_pos, str(data), ha='left', fontsize=8, 
+                               transform=ax.transAxes)
+                    
+                    y_pos -= 0.055
+                
+                pdf.savefig(fig)
+                plt.close(fig)
+
+        elif dashboard == 'clients':
+            from analytics.models import MartPortefeuilleClients
+
+            # Agrégation des KPIs principaux
+            summary = MartPortefeuilleClients.objects.aggregate(
+                total_clients=Count('entreprise_id', distinct=True),
+                creances_totales=Sum('ca_impaye'),
+                ca_total=Sum('chiffre_affaires_total'),
+                factures_retard=Sum('nombre_factures_retard'),
+                delai_moyen=Avg('delai_moyen_paiement'),
+            )
+
+            total_clients = int(summary.get('total_clients') or 0)
+            creances_totales = float(summary.get('creances_totales') or 0)
+            ca_total = float(summary.get('ca_total') or 0)
+            factures_retard = int(summary.get('factures_retard') or 0)
+            
+            # Calcul du délai moyen en jours (si DurationField)
+            delai_moyen_jours = 0
+            if summary.get('delai_moyen'):
+                try:
+                    delai_moyen_jours = int(summary['delai_moyen'].total_seconds() / 86400)
+                except:
+                    delai_moyen_jours = 0
+
+            def _fmt_currency_short(value: float) -> str:
+                abs_v = abs(value)
+                if abs_v >= 1_000_000_000:
+                    return f"{value / 1_000_000_000:.1f} Md FCFA"
+                if abs_v >= 1_000_000:
+                    return f"{value / 1_000_000:.1f} M FCFA"
+                if abs_v >= 1_000:
+                    return f"{value / 1_000:.1f} K FCFA"
+                return f"{value:,.0f} FCFA"
+
+            # ---- Page 2 : Vue d'Ensemble du Portefeuille (texte simple) ----
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis('off')
+
+            ax.text(0.05, 0.95, "Vue d'Ensemble du Portefeuille", fontsize=18, fontweight='bold', color='#111827', transform=ax.transAxes)
+
+            y_pos = 0.85
+            kpi_items = [
+                ("Total Clients", f"{total_clients}", "Entreprises actives"),
+                ("Créances Totales", _fmt_currency_short(creances_totales), f"{(creances_totales/ca_total*100) if ca_total else 0:.1f}% du CA"),
+                ("Délai Moyen Paiement", f"{delai_moyen_jours} jours", "Moyenne par client"),
+                ("Factures en Retard", f"{factures_retard}", "À relancer"),
+            ]
+            for title, value, detail in kpi_items:
+                ax.text(0.05, y_pos, f"{title}: {value}", fontsize=11, fontweight='bold', color='#111827', transform=ax.transAxes)
+                ax.text(0.05, y_pos - 0.04, detail, fontsize=9, color='#6B7280', transform=ax.transAxes)
+                y_pos -= 0.10
+
+            fig.tight_layout(pad=1.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 3 : Segmentation du Portefeuille (avec détails) ----
+            seg_qs = (
+                MartPortefeuilleClients.objects
+                .values('segment_client')
+                .annotate(
+                    nb=Count('entreprise_id'),
+                    ca_total=Sum('chiffre_affaires_total'),
+                )
+                .order_by('-ca_total')
+            )
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.axis('off')
+
+            ax.text(0.5, 0.95, "Segmentation du Portefeuille", fontsize=16, fontweight='bold', ha='center', transform=ax.transAxes)
+
+            if seg_qs:
+                # Graphique camembert
+                ax_pie = fig.add_axes([0.25, 0.5, 0.5, 0.4])
+                labels_seg = [row['segment_client'] or 'Non défini' for row in seg_qs]
+                sizes_seg = [float(row['ca_total'] or 0) for row in seg_qs]
+                colors = ['#2563EB', '#10B981', '#F97316', '#9333EA', '#EF4444']
+                wedges, texts, autotexts = ax_pie.pie(
+                    sizes_seg,
+                    labels=labels_seg,
+                    autopct='%1.1f%%',
+                    startangle=90,
+                    colors=colors[:len(sizes_seg)],
+                )
+                for autotext in autotexts:
+                    autotext.set_color('white')
+                    autotext.set_fontweight('bold')
+
+                # Légende détaillée sous le graphique
+                y_leg = 0.40
+                for idx, row in enumerate(seg_qs):
+                    segment = row['segment_client'] or 'Non défini'
+                    nb = int(row['nb'] or 0)
+                    ca = float(row['ca_total'] or 0)
+                    desc = f"{nb} client{'s' if nb > 1 else ''} {'> 100 M' if 'Grand' in segment or 'grand' in segment else '< 100 M' if 'Moyen' in segment or 'moyen' in segment else '< 10 M' if 'Petit' in segment or 'petit' in segment else ''}"
+                    ax.text(0.1, y_leg, f"{segment}:", fontsize=11, fontweight='bold', transform=ax.transAxes)
+                    ax.text(0.1, y_leg - 0.04, f"  {desc}, valeur: {_fmt_currency_short(ca)}", fontsize=10, color='#6B7280', transform=ax.transAxes)
+                    y_leg -= 0.10
+            else:
+                ax.text(0.5, 0.5, "Aucune donnée de segmentation", ha='center', va='center', transform=ax.transAxes)
+
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 4 : Répartition par Niveau de Risque (avec détails) ----
+            risk_qs = (
+                MartPortefeuilleClients.objects
+                .values('niveau_risque')
+                .annotate(
+                    nb_clients=Count('entreprise_id'),
+                    ca_total=Sum('chiffre_affaires_total'),
+                    creances=Sum('ca_impaye'),
+                )
+                .exclude(niveau_risque__isnull=True)
+            )
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+
+            if risk_qs:
+                labels_risk = [row['niveau_risque'] or 'Non défini' for row in risk_qs]
+                values_risk = [int(row['nb_clients'] or 0) for row in risk_qs]
+                
+                ax.barh(labels_risk, values_risk, color='#2563EB')
+                ax.set_title("Répartition par Niveau de Risque", fontsize=16, fontweight='bold')
+                ax.set_xlabel("Nombre de clients", fontsize=12)
+                ax.xaxis.grid(True, linestyle='--', alpha=0.4)
+                ax.invert_yaxis()
+                
+                for i, (v, row) in enumerate(zip(values_risk, risk_qs)):
+                    ax.text(v, i, str(v), va='center', ha='left', fontsize=10, fontweight='bold')
+                    # Détails sous chaque barre
+                    ca_val = float(row['ca_total'] or 0)
+                    creances_val = float(row['creances'] or 0)
+                    ax.text(
+                        ax.get_xlim()[1] * 0.6,
+                        i,
+                        f"CA: {_fmt_currency_short(ca_val)}, Créances: {_fmt_currency_short(creances_val)}",
+                        va='center',
+                        fontsize=9,
+                        color='#6B7280',
+                    )
+            else:
+                ax.text(0.5, 0.5, "Aucune donnée de risque", ha='center', va='center')
+                ax.axis('off')
+
+            fig.tight_layout(pad=2.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 5 : Top Clients par CA (tableau détaillé) ----
+            top_clients = (
+                MartPortefeuilleClients.objects
+                .order_by('-chiffre_affaires_total')[:10]
+            )
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.axis('off')
+
+            ax.text(0.5, 0.95, "Top Clients par CA", fontsize=16, fontweight='bold', ha='center', transform=ax.transAxes)
+
+            if top_clients:
+                top_rows = []
+                for idx, client in enumerate(top_clients, start=1):
+                    raison = (client.raison_sociale or '')[:50]
+                    ca = _fmt_currency_short(float(client.chiffre_affaires_total or 0))
+                    ca_full = f"{float(client.chiffre_affaires_total or 0):,.0f} FCFA"
+                    taux = f"{float(client.taux_paiement_pct or 0):.1f}%"
+                    top_rows.append([str(idx), raison, ca, ca_full, taux])
+
+                table1 = ax.table(
+                    cellText=top_rows,
+                    colLabels=["#", "CLIENT", "CA TOTAL", "CA (détail)", "TAUX PAIEMENT"],
+                    loc='center',
+                    cellLoc='left',
+                )
+                table1.auto_set_font_size(False)
+                table1.set_fontsize(9)
+                table1.scale(1.0, 1.8)
+                
+                # Mettre en gras les en-têtes
+                num_rows = len(top_rows) + 1
+                num_cols = 5
+                for row in range(num_rows):
+                    for col in range(num_cols):
+                        cell = table1[(row, col)]
+                        if row == 0:
+                            cell.set_text_props(weight='bold', fontsize=10)
+                        else:
+                            if col == 1:  # Colonne CLIENT
+                                cell.set_text_props(fontsize=9)
+                            else:
+                                cell.set_text_props(fontsize=9)
+            else:
+                ax.text(0.5, 0.5, "Aucun client disponible", ha='center', va='center', transform=ax.transAxes)
+
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 6 : Clients à Risque (tableau détaillé) ----
+            clients_risque = (
+                MartPortefeuilleClients.objects
+                .filter(taux_paiement_pct__lt=70)
+                .order_by('taux_paiement_pct')[:10]
+            )
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.axis('off')
+
+            ax.text(0.5, 0.95, "Clients à Risque", fontsize=16, fontweight='bold', ha='center', transform=ax.transAxes)
+
+            if clients_risque:
+                risk_rows = []
+                for idx, client in enumerate(clients_risque, start=1):
+                    raison = (client.raison_sociale or '')[:50]
+                    creances = _fmt_currency_short(float(client.ca_impaye or 0))
+                    creances_full = f"{float(client.ca_impaye or 0):,.0f} FCFA"
+                    taux = f"{float(client.taux_paiement_pct or 0):.1f}%"
+                    risk_rows.append([str(idx), raison, creances, creances_full, taux])
+
+                table2 = ax.table(
+                    cellText=risk_rows,
+                    colLabels=["#", "CLIENT", "CRÉANCES", "CRÉANCES (détail)", "TAUX PAIEMENT"],
+                    loc='center',
+                    cellLoc='left',
+                )
+                table2.auto_set_font_size(False)
+                table2.set_fontsize(9)
+                table2.scale(1.0, 1.8)
+                
+                # Mettre en gras les en-têtes
+                num_rows = len(risk_rows) + 1
+                num_cols = 5
+                for row in range(num_rows):
+                    for col in range(num_cols):
+                        cell = table2[(row, col)]
+                        if row == 0:
+                            cell.set_text_props(weight='bold', fontsize=10)
+                        else:
+                            if col == 1:  # Colonne CLIENT
+                                cell.set_text_props(fontsize=9)
+                            else:
+                                cell.set_text_props(fontsize=9)
+            else:
+                ax.text(0.5, 0.5, "Aucun client à risque", ha='center', va='center', transform=ax.transAxes)
+
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 7 : Analyse de l'Occupation des Lots Industriels ----
+            clients_avec_lots = MartPortefeuilleClients.objects.filter(nombre_lots_attribues__gt=0)
+            clients_sans_lots = MartPortefeuilleClients.objects.filter(nombre_lots_attribues=0)
+
+            nb_avec_lots = clients_avec_lots.count()
+            nb_sans_lots = clients_sans_lots.count()
+            superficie_totale = float(clients_avec_lots.aggregate(Sum('superficie_totale_attribuee')).get('superficie_totale_attribuee__sum') or 0)
+            ca_moyen_avec_lots = float(clients_avec_lots.aggregate(avg=Avg('chiffre_affaires_total')).get('avg') or 0)
+            ca_moyen_sans_lots = float(clients_sans_lots.aggregate(avg=Avg('chiffre_affaires_total')).get('avg') or 0)
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis('off')
+
+            ax.text(0.05, 0.95, "Analyse de l'Occupation des Lots Industriels", fontsize=16, fontweight='bold', color='#111827', transform=ax.transAxes)
+            
+            y_occ = 0.82
+            occ_items = [
+                (f"{nb_avec_lots}", "Clients avec Lots", f"1 Lots > {superficie_totale:,.0f} m²"),
+                (f"{nb_sans_lots}", "Clients sans Lots", "Prospects potentiels"),
+                (_fmt_currency_short(ca_moyen_avec_lots), "CA Moyen (avec lots)", "Par client occupant"),
+                (_fmt_currency_short(ca_moyen_sans_lots), "CA Moyen (sans lots)", "Par client non-occupant"),
+            ]
+            for value, title, detail in occ_items:
+                ax.text(0.05, y_occ, f"{title}: {value}", fontsize=12, fontweight='bold', color='#111827', transform=ax.transAxes)
+                ax.text(0.05, y_occ - 0.05, detail, fontsize=10, color='#6B7280', transform=ax.transAxes)
+                y_occ -= 0.15
+
+            fig.tight_layout(pad=1.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # ---- Page 8 : Top Secteurs d'Activité ----
+            secteurs_qs = (
+                MartPortefeuilleClients.objects
+                .values('secteur_activite')
+                .annotate(
+                    nb_clients=Count('entreprise_id'),
+                    ca_total=Sum('chiffre_affaires_total'),
+                )
+                .exclude(secteur_activite__isnull=True)
+                .order_by('-ca_total')[:10]
+            )
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            fig.patch.set_facecolor('white')
+
+            if secteurs_qs:
+                secteurs = [row['secteur_activite'] or 'Non défini' for row in secteurs_qs]
+                nb_clients = [int(row['nb_clients'] or 0) for row in secteurs_qs]
+                ca_tot = [float(row['ca_total'] or 0) for row in secteurs_qs]
+
+                # Normaliser les valeurs pour l'affichage (CA en millions pour la cohérence)
+                ca_tot_norm = [c / 1_000_000 for c in ca_tot]  # Convertir en millions
+
+                y = range(len(secteurs))
+                height = 0.35
+                bars1 = ax.barh([i - height/2 for i in y], nb_clients, height=height, label='Nombre de clients', color='#2563EB')
+                bars2 = ax.barh([i + height/2 for i in y], ca_tot_norm, height=height, label='CA Total (M FCFA)', color='#10B981')
+                
+                ax.set_yticks(list(y))
+                ax.set_yticklabels(secteurs, fontsize=9)
+                ax.set_xlabel("Valeur", fontsize=12)
+                ax.set_title("Top Secteurs d'Activité", fontsize=16, fontweight='bold')
+                ax.legend(loc='lower right', framealpha=0.9, fontsize=10)
+                ax.xaxis.grid(True, linestyle='--', alpha=0.4)
+                
+                # Ajouter les valeurs sur les barres
+                for i, (nb, ca) in enumerate(zip(nb_clients, ca_tot_norm)):
+                    if nb > 0:
+                        ax.text(nb, i - height/2, str(nb), va='center', ha='left', fontsize=8)
+                    if ca > 0:
+                        ax.text(ca, i + height/2, f"{ca:.1f}M", va='center', ha='left', fontsize=8)
+            else:
+                ax.text(0.5, 0.5, "Aucune donnée de secteur disponible", ha='center', va='center')
+                ax.axis('off')
+
+            fig.tight_layout(pad=2.0)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        elif dashboard == 'operationnel':
+            from analytics.models import MartKPIOperationnels
+
+            # Page 2 : performance trimestrielle (collectes + recouvrement)
+            rows = (
+                MartKPIOperationnels.objects
+                .values('annee', 'trimestre')
+                .annotate(
+                    total_collectes=Sum('nombre_collectes'),
+                    taux_recouvrement=Sum('taux_recouvrement_global_pct'),
+                )
+                .order_by('annee', 'trimestre')
+            )
+
+            if rows:
+                labels = [f"T{r['trimestre']} {r['annee']}" for r in rows]
+                collectes = [float(r['total_collectes'] or 0) for r in rows]
+                taux = [float(r['taux_recouvrement'] or 0) for r in rows]
+
+                fig, ax1 = plt.subplots(figsize=(8.27, 11.69))
+                ax2 = ax1.twinx()
+
+                x = range(len(labels))
+                ax1.bar(x, collectes, color='#2563EB', alpha=0.7, label='Collectes')
+                ax2.plot(x, taux, color='#16A34A', marker='o', label='Taux de recouvrement (%)')
+
+                ax1.set_xticks(list(x))
+                ax1.set_xticklabels(labels, rotation=45, ha='right')
+                ax1.set_ylabel("Nombre de collectes")
+                ax2.set_ylabel("Taux (%)")
+                ax1.set_title("Performance opérationnelle par trimestre")
+
+                lines, labels1 = ax1.get_legend_handles_labels()
+                lines2, labels2 = ax2.get_legend_handles_labels()
+                ax1.legend(lines + lines2, labels1 + labels2, loc='upper left')
+
+                fig.tight_layout()
+                pdf.savefig(fig)
+                plt.close(fig)
+
+        elif dashboard == 'alerts':
+            from analytics.models import Alert
+
+            # Page 2 : répartition des alertes par sévérité
+            severities = ['critical', 'high', 'medium', 'low']
+            labels = ['Critique', 'Élevé', 'Moyen', 'Faible']
+            counts = [Alert.objects.filter(severity=sev).count() for sev in severities]
+
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            ax.bar(labels, counts, color=['#EF4444', '#F97316', '#EAB308', '#3B82F6'])
+            ax.set_title("Répartition des alertes par sévérité")
+            ax.set_ylabel("Nombre d'alertes")
+            for i, v in enumerate(counts):
+                ax.text(i, v, str(v), ha='center', va='bottom')
+            fig.tight_layout()
+            pdf.savefig(fig)
+            plt.close(fig)
+
+        else:
+            fig, ax = plt.subplots(figsize=(8.27, 11.69))
+            ax.axis('off')
+            ax.text(
+                0.5,
+                0.5,
+                "Ce type de rapport n'est pas encore implémenté en PDF.\n"
+                "Veuillez choisir le tableau de bord 'financier' ou 'occupation'.",
+                ha='center',
+                va='center',
+                fontsize=12,
+            )
+            pdf.savefig(fig)    
+            plt.close(fig)
+
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def generate_multiple_dashboards_report_pdf(dashboards: list) -> bytes:
+    """
+    Génère un PDF combiné pour plusieurs dashboards.
+    Chaque dashboard est inclus dans le PDF avec ses propres pages.
+    
+    Args:
+        dashboards: Liste des noms de dashboards à inclure
+        
+    Returns:
+        bytes: PDF combiné contenant tous les dashboards
+    """
+    if not dashboards or len(dashboards) == 0:
+        raise ValueError("Au moins un dashboard doit être fourni")
+    
+    # Si un seul dashboard, on utilise la fonction existante
+    if len(dashboards) == 1:
+        return generate_dashboard_report_pdf(dashboards[0])
+    
+    if not MATPLOTLIB_AVAILABLE:
+        # Fallback simple
+        buffer = io.BytesIO()
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+        
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(72, height - 72, f"Rapport SIGETI - {', '.join(dashboards)}")
+        c.setFont("Helvetica", 12)
+        c.drawString(72, height - 110, "Les graphiques détaillés nécessitent Matplotlib sur le serveur.")
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+    
+    # Combiner les PDFs de chaque dashboard
+    buffer = io.BytesIO()
+    with PdfPages(buffer) as pdf:
+        # Page de titre globale
+        fig, ax = plt.subplots(figsize=(8.27, 11.69))
+        ax.axis('off')
+        
+        # Titre principal
+        ax.text(
+            0.5,
+            0.85,
+            "Rapport SIGETI - Tableaux de bord combinés",
+            ha='center',
+            fontsize=18,
+            weight='bold',
+        )
+        
+        # Liste des dashboards inclus
+        dashboard_labels = {
+            'dashboard': 'Tableau de bord',
+            'financier': 'Performance Financière',
+            'occupation': 'Occupation Zones',
+            'clients': 'Portefeuille Clients',
+            'operationnel': 'KPI Opérationnels',
+            'alerts': 'Alerts Analytics',
+        }
+        
+        dashboards_text = "\n".join([f"  • {dashboard_labels.get(d, d)}" for d in dashboards])
+        ax.text(
+            0.5,
+            0.65,
+            "Dashboards inclus:\n" + dashboards_text,
+            ha='center',
+            fontsize=12,
+            va='top',
+        )
+        
+        ax.text(
+            0.5,
+            0.3,
+            f"Généré le {timezone.now().strftime('%d/%m/%Y %H:%M')}",
+            ha='center',
+            fontsize=11,
+        )
+        
+        pdf.savefig(fig)
+        plt.close(fig)
+    
+    # Maintenant, on combine les PDFs générés
+    try:
+        from PyPDF2 import PdfReader, PdfWriter
+        
+        # Créer un writer pour le PDF final
+        writer = PdfWriter()
+        
+        # Ajouter la page de titre qu'on vient de créer
+        buffer.seek(0)
+        title_reader = PdfReader(buffer)
+        for page in title_reader.pages:
+            writer.add_page(page)
+        
+        # Ajouter les pages de chaque dashboard (sauf la première page de titre de chaque dashboard)
+        for dashboard in dashboards:
+            dashboard_pdf_bytes = generate_dashboard_report_pdf(dashboard)
+            dashboard_buffer = io.BytesIO(dashboard_pdf_bytes)
+            dashboard_reader = PdfReader(dashboard_buffer)
+            
+            # Ajouter toutes les pages du dashboard
+            for page in dashboard_reader.pages:
+                writer.add_page(page)
+        
+        # Écrire le PDF final
+        final_buffer = io.BytesIO()
+        writer.write(final_buffer)
+        final_buffer.seek(0)
+        return final_buffer.getvalue()
+        
+    except ImportError:
+        # Si PyPDF2 n'est pas disponible, on génère simplement le premier dashboard
+        # avec une note indiquant que plusieurs dashboards ont été demandés
+        return generate_dashboard_report_pdf(dashboards[0])
+
+
+# User Management & Permissions
 from django.contrib.auth.models import User
-from rest_framework import status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 class UserViewSet(viewsets.ModelViewSet):
     """
