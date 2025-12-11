@@ -25,7 +25,7 @@ import {
 import { occupationAPI } from '../services/api'
 import StatsCard from '../components/StatsCard'
 import ZonesMap from '../components/ZonesMap'
-import { exportOccupationToExcel } from '../utils/excelExport'
+import ExportButton from '../components/ExportButton'
 
 export default function Occupation() {
   const [currentPage, setCurrentPage] = useState(1)
@@ -33,6 +33,38 @@ export default function Occupation() {
   const [sortField, setSortField] = useState('nom_zone')
   const [sortDirection, setSortDirection] = useState('asc')
   const [viewMode, setViewMode] = useState('table') // 'table' ou 'map'
+  
+  // États des filtres
+  const [filters, setFilters] = useState({
+    nom_zone: '',
+    taux_occupation_min: '',
+    taux_occupation_max: '',
+    lots_total_min: '',
+    lots_total_max: '',
+    statut: '' // 'saturee', 'elevee', 'normale', 'faible'
+  })
+
+  // Fonction pour mettre à jour un filtre
+  const updateFilter = (field, value) => {
+    setFilters(prev => ({ ...prev, [field]: value }))
+    setCurrentPage(1) // Reset à la page 1 quand on filtre
+  }
+
+  // Fonction pour réinitialiser tous les filtres
+  const resetFilters = () => {
+    setFilters({
+      nom_zone: '',
+      taux_occupation_min: '',
+      taux_occupation_max: '',
+      lots_total_min: '',
+      lots_total_max: '',
+      statut: ''
+    })
+    setCurrentPage(1)
+  }
+
+  // Vérifier si des filtres sont actifs
+  const hasActiveFilters = Object.values(filters).some(v => v !== '')
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['occupation-summary'],
@@ -83,11 +115,65 @@ export default function Occupation() {
     return { label: 'Faible', color: 'blue' }
   }
 
-  // Tri des zones (sans filtrage)
+  // Filtrage et tri des zones
   const sortedZones = useMemo(() => {
     if (!allZonesData || allZonesData.length === 0) return []
     
-    const sorted = [...allZonesData].sort((a, b) => {
+    // Appliquer les filtres
+    let filtered = [...allZonesData].filter(zone => {
+      // Filtre par nom de zone
+      if (filters.nom_zone && !zone.nom_zone?.toLowerCase().includes(filters.nom_zone.toLowerCase())) {
+        return false
+      }
+      
+      // Filtre par taux d'occupation min
+      if (filters.taux_occupation_min) {
+        const taux = parseFloat(zone.taux_occupation_pct) || 0
+        if (taux < parseFloat(filters.taux_occupation_min)) return false
+      }
+      
+      // Filtre par taux d'occupation max
+      if (filters.taux_occupation_max) {
+        const taux = parseFloat(zone.taux_occupation_pct) || 0
+        if (taux > parseFloat(filters.taux_occupation_max)) return false
+      }
+      
+      // Filtre par nombre total de lots min
+      if (filters.lots_total_min) {
+        const lots = parseInt(zone.nombre_total_lots) || 0
+        if (lots < parseInt(filters.lots_total_min)) return false
+      }
+      
+      // Filtre par nombre total de lots max
+      if (filters.lots_total_max) {
+        const lots = parseInt(zone.nombre_total_lots) || 0
+        if (lots > parseInt(filters.lots_total_max)) return false
+      }
+      
+      // Filtre par statut
+      if (filters.statut) {
+        const taux = parseFloat(zone.taux_occupation_pct) || 0
+        switch (filters.statut) {
+          case 'saturee':
+            if (taux < 90) return false
+            break
+          case 'elevee':
+            if (taux < 70 || taux >= 90) return false
+            break
+          case 'normale':
+            if (taux < 50 || taux >= 70) return false
+            break
+          case 'faible':
+            if (taux >= 50) return false
+            break
+        }
+      }
+      
+      return true
+    })
+    
+    // Appliquer le tri
+    const sorted = filtered.sort((a, b) => {
       let aValue, bValue
       
       switch (sortField) {
@@ -129,7 +215,7 @@ export default function Occupation() {
     })
     
     return sorted
-  }, [allZonesData, sortField, sortDirection])
+  }, [allZonesData, sortField, sortDirection, filters])
 
   // Calculs de pagination
   const totalPages = Math.ceil(sortedZones.length / itemsPerPage)
@@ -159,6 +245,40 @@ export default function Occupation() {
       : <ArrowDown className="w-4 h-4" />
   }
 
+  // Préparer les données pour l'export
+  const prepareExportData = () => {
+    const data = []
+    
+    // Résumé global
+    if (summary) {
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Nombre de Zones', 'Valeur': summary.nombre_zones || 0, 'Unité': 'zones' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Total Lots', 'Valeur': summary.total_lots || 0, 'Unité': 'lots' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Lots Attribués', 'Valeur': summary.lots_attribues || 0, 'Unité': 'lots' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Lots Disponibles', 'Valeur': summary.lots_disponibles || 0, 'Unité': 'lots' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Taux Occupation Moyen', 'Valeur': summary.taux_occupation_moyen?.toFixed(1) || 0, 'Unité': '%' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Superficie Totale', 'Valeur': summary.superficie_totale || 0, 'Unité': 'm²' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Zones Saturées (>90%)', 'Valeur': summary.zones_saturees || 0, 'Unité': 'zones' })
+      data.push({ 'Catégorie': 'Résumé', 'Métrique': 'Zones Sous-Occupées (<50%)', 'Valeur': summary.zones_faible_occupation || 0, 'Unité': 'zones' })
+    }
+    
+    // Détails par zone (données filtrées)
+    if (sortedZones && sortedZones.length > 0) {
+      data.push({ 'Catégorie': '---', 'Métrique': '---', 'Valeur': '---', 'Unité': '---' })
+      data.push({ 'Catégorie': 'Détail Zones', 'Métrique': 'Zone', 'Valeur': 'Taux (%)', 'Unité': 'Lots' })
+      
+      sortedZones.forEach(zone => {
+        data.push({
+          'Catégorie': 'Zone',
+          'Métrique': zone.nom_zone,
+          'Valeur': parseFloat(zone.taux_occupation_pct)?.toFixed(1) || 0,
+          'Unité': `${zone.lots_attribues || 0}/${zone.nombre_total_lots || 0}`
+        })
+      })
+    }
+    
+    return data
+  }
+
   return (
     <div className="space-y-8">
       {/* En-tête avec boutons Export et Refresh */}
@@ -167,17 +287,14 @@ export default function Occupation() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Occupation des Zones</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Analyse de l'occupation des zones industrielles</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => exportOccupationToExcel(summary, zonesData, topZones)}
-            disabled={!summary || !zonesData}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:cursor-not-allowed"
-            title="Exporter vers Excel"
-          >
-            <Download className="w-5 h-5" />
-            Exporter Excel
-          </button>
-        </div>
+        <ExportButton 
+          data={prepareExportData()} 
+          filename="occupation_zones"
+          title="Dashboard Occupation des Zones"
+          showPDF={true}
+          showExcel={true}
+          showCSV={true}
+        />
       </div>
 
       {/* KPIs Principaux */}
@@ -487,6 +604,121 @@ export default function Occupation() {
         ) : (
           /* Vue Tableau */
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          
+          {/* Filtres */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                Filtres
+              </h4>
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+              {/* Filtre Zone */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Zone</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher..."
+                    value={filters.nom_zone}
+                    onChange={(e) => updateFilter('nom_zone', e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              
+              {/* Filtre Taux Min */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Taux Min (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="0"
+                  value={filters.taux_occupation_min}
+                  onChange={(e) => updateFilter('taux_occupation_min', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              {/* Filtre Taux Max */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Taux Max (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="100"
+                  value={filters.taux_occupation_max}
+                  onChange={(e) => updateFilter('taux_occupation_max', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              {/* Filtre Lots Min */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Lots Min</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={filters.lots_total_min}
+                  onChange={(e) => updateFilter('lots_total_min', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              {/* Filtre Lots Max */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Lots Max</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="∞"
+                  value={filters.lots_total_max}
+                  onChange={(e) => updateFilter('lots_total_max', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              {/* Filtre Statut */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Statut</label>
+                <select
+                  value={filters.statut}
+                  onChange={(e) => updateFilter('statut', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Tous</option>
+                  <option value="saturee">Saturée (&gt;90%)</option>
+                  <option value="elevee">Élevée (70-90%)</option>
+                  <option value="normale">Normale (50-70%)</option>
+                  <option value="faible">Faible (&lt;50%)</option>
+                </select>
+              </div>
+            </div>
+            
+            {/* Résumé des filtres actifs */}
+            {hasActiveFilters && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">{sortedZones.length}</span> zone(s) correspondant aux critères
+                </p>
+              </div>
+            )}
+          </div>
+          
           {/* Top 5 des Zones */}
           {topZones && topZones.plus_occupees && topZones.plus_occupees.length > 0 && (
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">

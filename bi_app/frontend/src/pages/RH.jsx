@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { 
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { 
   Users, TrendingUp, Target, Award, Clock, DollarSign,
-  UserCheck, AlertCircle, Activity, BarChart3
+  UserCheck, AlertCircle, Activity, BarChart3, Search, X
 } from 'lucide-react'
 import rhAPI from '../services/rhAPI'
 import StatsCard from '../components/StatsCard'
@@ -17,6 +17,40 @@ const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 export default function RH() {
   const [selectedMetric, setSelectedMetric] = useState('montant_recouvre')
   const [topLimit, setTopLimit] = useState(10)
+  
+  // États des filtres pour le tableau
+  const [agentFilters, setAgentFilters] = useState({
+    nom: '',
+    matricule: '',
+    collectes_min: '',
+    collectes_max: '',
+    taux_min: '',
+    taux_max: '',
+    performance: '' // 'excellent', 'moyen', 'faible'
+  })
+  const [agentsPage, setAgentsPage] = useState(0)
+  const agentsPerPage = 20
+
+  // Fonctions de gestion des filtres
+  const updateAgentFilter = (field, value) => {
+    setAgentFilters(prev => ({ ...prev, [field]: value }))
+    setAgentsPage(0)
+  }
+
+  const resetAgentFilters = () => {
+    setAgentFilters({
+      nom: '',
+      matricule: '',
+      collectes_min: '',
+      collectes_max: '',
+      taux_min: '',
+      taux_max: '',
+      performance: ''
+    })
+    setAgentsPage(0)
+  }
+
+  const hasActiveAgentFilters = Object.values(agentFilters).some(v => v !== '')
 
   // Requêtes API
   const { data: agentsData, isLoading: agentsLoading } = useQuery({
@@ -66,6 +100,69 @@ export default function RH() {
   }
 
   const summary = agentsData?.summary || {}
+
+  // Filtrage des agents
+  const filteredAgents = useMemo(() => {
+    if (!agentsData?.agents) return []
+    
+    return agentsData.agents.filter(agent => {
+      // Filtre par nom
+      if (agentFilters.nom && !agent.nom_complet?.toLowerCase().includes(agentFilters.nom.toLowerCase())) {
+        return false
+      }
+      
+      // Filtre par matricule
+      if (agentFilters.matricule && !agent.matricule?.toLowerCase().includes(agentFilters.matricule.toLowerCase())) {
+        return false
+      }
+      
+      // Filtre par nombre de collectes min
+      if (agentFilters.collectes_min) {
+        const collectes = agent.nombre_collectes || 0
+        if (collectes < parseInt(agentFilters.collectes_min)) return false
+      }
+      
+      // Filtre par nombre de collectes max
+      if (agentFilters.collectes_max) {
+        const collectes = agent.nombre_collectes || 0
+        if (collectes > parseInt(agentFilters.collectes_max)) return false
+      }
+      
+      // Filtre par taux min
+      if (agentFilters.taux_min) {
+        const taux = agent.taux_recouvrement_moyen_pct || 0
+        if (taux < parseFloat(agentFilters.taux_min)) return false
+      }
+      
+      // Filtre par taux max
+      if (agentFilters.taux_max) {
+        const taux = agent.taux_recouvrement_moyen_pct || 0
+        if (taux > parseFloat(agentFilters.taux_max)) return false
+      }
+      
+      // Filtre par niveau de performance
+      if (agentFilters.performance) {
+        const taux = agent.taux_recouvrement_moyen_pct || 0
+        switch (agentFilters.performance) {
+          case 'excellent':
+            if (taux < 60) return false
+            break
+          case 'moyen':
+            if (taux < 40 || taux >= 60) return false
+            break
+          case 'faible':
+            if (taux >= 40) return false
+            break
+        }
+      }
+      
+      return true
+    })
+  }, [agentsData?.agents, agentFilters])
+
+  // Pagination des agents filtrés
+  const paginatedAgents = filteredAgents.slice(agentsPage * agentsPerPage, (agentsPage + 1) * agentsPerPage)
+  const totalAgentPages = Math.ceil(filteredAgents.length / agentsPerPage)
 
   // Préparer les données pour les graphiques
   const typeAgentLabels = {
@@ -423,8 +520,116 @@ export default function RH() {
       )}
 
       {/* Table des agents */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Liste des Agents</h2>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Liste des Agents</h2>
+            {hasActiveAgentFilters && (
+              <button
+                onClick={resetAgentFilters}
+                className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                Réinitialiser filtres
+              </button>
+            )}
+          </div>
+          
+          {/* Filtres */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Filtre Nom */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Nom</label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher..."
+                  value={agentFilters.nom}
+                  onChange={(e) => updateAgentFilter('nom', e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            
+            {/* Filtre Matricule */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Matricule</label>
+              <input
+                type="text"
+                placeholder="Matricule..."
+                value={agentFilters.matricule}
+                onChange={(e) => updateAgentFilter('matricule', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Filtre Collectes Min */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Collectes Min</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={agentFilters.collectes_min}
+                onChange={(e) => updateAgentFilter('collectes_min', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Filtre Collectes Max */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Collectes Max</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="∞"
+                value={agentFilters.collectes_max}
+                onChange={(e) => updateAgentFilter('collectes_max', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Filtre Taux Min/Max */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Taux Min (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="0"
+                value={agentFilters.taux_min}
+                onChange={(e) => updateAgentFilter('taux_min', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Filtre Performance */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Performance</label>
+              <select
+                value={agentFilters.performance}
+                onChange={(e) => updateAgentFilter('performance', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tous</option>
+                <option value="excellent">Excellent (≥60%)</option>
+                <option value="moyen">Moyen (40-60%)</option>
+                <option value="faible">Faible (&lt;40%)</option>
+              </select>
+            </div>
+          </div>
+          
+          {/* Résumé des filtres */}
+          {hasActiveAgentFilters && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">{filteredAgents.length}</span> agent(s) correspondant aux critères
+              </p>
+            </div>
+          )}
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -450,7 +655,7 @@ export default function RH() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {agentsData?.agents?.slice(0, 20).map((agent) => (
+              {paginatedAgents.map((agent) => (
                 <tr key={agent.agent_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{agent.nom_complet}</div>
@@ -484,6 +689,34 @@ export default function RH() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {filteredAgents.length > agentsPerPage && (
+          <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Affichage {agentsPage * agentsPerPage + 1} - {Math.min((agentsPage + 1) * agentsPerPage, filteredAgents.length)} sur {filteredAgents.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAgentsPage(p => Math.max(0, p - 1))}
+                disabled={agentsPage === 0}
+                className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ← Précédent
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {agentsPage + 1} / {totalAgentPages}
+              </span>
+              <button
+                onClick={() => setAgentsPage(p => Math.min(totalAgentPages - 1, p + 1))}
+                disabled={agentsPage >= totalAgentPages - 1}
+                className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Suivant →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
