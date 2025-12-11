@@ -25,6 +25,8 @@ const RISK_COLORS = {
 export default function Portefeuille() {
   const [selectedSegment, setSelectedSegment] = useState('all')
   const [topClientsPage, setTopClientsPage] = useState(0)
+  const [riskClientsPage, setRiskClientsPage] = useState(0)
+  const [showAllRiskClients, setShowAllRiskClients] = useState(false)
   const itemsPerPage = 10
   
   // Requêtes API
@@ -572,17 +574,31 @@ export default function Portefeuille() {
         {/* Clients à Risque */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-              <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
-              Clients à Risque ({atRisk?.nombre_total || 0})
-            </h4>
-            {atRisk?.total_creances && (
-              <p className="text-sm text-gray-600 mt-1">
-                Créances totales: {formatCurrency(atRisk.total_creances)}
-              </p>
-            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+                  Top 10 Clients à Risque
+                  <span className="ml-2 text-sm font-normal text-gray-500">({atRisk?.nombre_total || 0} total)</span>
+                </h4>
+                {atRisk?.total_creances && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Créances totales: {formatCurrency(atRisk.total_creances)}
+                  </p>
+                )}
+              </div>
+              {atRisk?.clients_a_risque?.length > 10 && (
+                <button
+                  onClick={() => setShowAllRiskClients(!showAllRiskClients)}
+                  className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  {showAllRiskClients ? 'Afficher moins' : 'Voir tous'}
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="overflow-x-auto max-h-96">
+          <div className={`overflow-x-auto ${showAllRiskClients ? '' : 'max-h-96'}`}>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-red-50 sticky top-0">
                 <tr>
@@ -593,7 +609,10 @@ export default function Portefeuille() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {atRisk?.clients_a_risque?.slice(0, 10).map((client) => (
+                {(showAllRiskClients 
+                  ? atRisk?.clients_a_risque?.slice(riskClientsPage * itemsPerPage, (riskClientsPage + 1) * itemsPerPage)
+                  : atRisk?.clients_a_risque?.slice(0, 10)
+                )?.map((client) => (
                   <tr key={client.entreprise_id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div>
@@ -625,6 +644,34 @@ export default function Portefeuille() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination - affichée uniquement en mode "Voir tous" */}
+          {showAllRiskClients && atRisk?.clients_a_risque?.length > itemsPerPage && (
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Affichage {riskClientsPage * itemsPerPage + 1} - {Math.min((riskClientsPage + 1) * itemsPerPage, atRisk.clients_a_risque.length)} sur {atRisk.clients_a_risque.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRiskClientsPage(p => Math.max(0, p - 1))}
+                  disabled={riskClientsPage === 0}
+                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Précédent
+                </button>
+                <span className="text-sm text-gray-600">
+                  Page {riskClientsPage + 1} / {Math.ceil(atRisk.clients_a_risque.length / itemsPerPage)}
+                </span>
+                <button
+                  onClick={() => setRiskClientsPage(p => Math.min(Math.ceil(atRisk.clients_a_risque.length / itemsPerPage) - 1, p + 1))}
+                  disabled={riskClientsPage >= Math.ceil(atRisk.clients_a_risque.length / itemsPerPage) - 1}
+                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Suivant →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
