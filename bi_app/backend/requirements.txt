@@ -12,6 +12,7 @@ django-ratelimit==4.1.0
 # Utilities
 django-filter==23.5
 pandas==2.1.4
+python-dateutil==2.8.2
 
 # AI Chatbot (optionnel)
 openai==1.12.0

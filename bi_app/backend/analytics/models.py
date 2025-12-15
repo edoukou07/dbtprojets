@@ -273,6 +273,17 @@ class ReportSchedule(models.Model):
         ('alerts', 'Alerts Analytics'),
     ]
 
+    RECURRENCE_TYPE_CHOICES = [
+        ('none', 'Aucune (envoi unique)'),
+        ('minute', 'Par minute'),
+        ('hour', 'Par heure'),
+        ('daily', 'Quotidien'),
+        ('weekly', 'Hebdomadaire'),
+        ('monthly', 'Mensuel'),
+        ('yearly', 'Annuel'),
+        ('custom', 'Personnalisé'),
+    ]
+
     name = models.CharField(max_length=255)
     dashboard = models.CharField(max_length=50, choices=DASHBOARD_CHOICES, null=True, blank=True)  # Deprecated, kept for backward compatibility
     dashboards = models.JSONField(default=list, help_text="Liste des dashboards à inclure dans le rapport")
@@ -282,6 +293,25 @@ class ReportSchedule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     sent = models.BooleanField(default=False)
     sent_at = models.DateTimeField(null=True, blank=True)
+    pdfs_data = models.JSONField(default=dict, blank=True, help_text="Dictionnaire stockant les chemins des PDFs générés: {dashboard_name: file_path}")
+
+    # Recurrence fields
+    is_recurring = models.BooleanField(default=False, help_text="Indique si le rapport est récurrent")
+    recurrence_type = models.CharField(max_length=20, choices=RECURRENCE_TYPE_CHOICES, default='none', help_text="Type de récurrence")
+    recurrence_interval = models.IntegerField(null=True, blank=True, help_text="Intervalle (ex: toutes les 5 minutes, toutes les 3 heures)")
+    recurrence_minute = models.IntegerField(null=True, blank=True, help_text="Minute précise (0-59) pour certaines récurrences")
+    recurrence_hour = models.IntegerField(null=True, blank=True, help_text="Heure précise (0-23)")
+    recurrence_days_of_week = models.JSONField(default=list, blank=True, help_text="Jours de la semaine [0-6] où 0=lundi pour récurrence hebdomadaire")
+    recurrence_day_of_month = models.IntegerField(null=True, blank=True, help_text="Jour du mois (1-31) ou -1 pour dernier jour")
+    recurrence_week_of_month = models.IntegerField(null=True, blank=True, help_text="Semaine du mois (1-4) pour 'premier lundi'")
+    recurrence_month = models.IntegerField(null=True, blank=True, help_text="Mois (1-12) pour récurrence annuelle")
+    recurrence_workdays_only = models.BooleanField(default=False, help_text="Uniquement jours ouvrables")
+    recurrence_hour_range_start = models.TimeField(null=True, blank=True, help_text="Début de plage horaire")
+    recurrence_hour_range_end = models.TimeField(null=True, blank=True, help_text="Fin de plage horaire")
+    recurrence_hour_range_interval = models.IntegerField(null=True, blank=True, help_text="Intervalle dans la plage (en minutes)")
+    recurrence_end_date = models.DateTimeField(null=True, blank=True, help_text="Date de fin optionnelle")
+    parent_schedule = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='occurrences', help_text="Référence au rapport parent pour les occurrences")
+    occurrence_number = models.IntegerField(default=1, help_text="Numéro d'occurrence dans la série")
 
     class Meta:
         managed = True

@@ -12,10 +12,14 @@ Pour l'automatisation, ajoutez dans crontab (toutes les minutes):
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from django.conf import settings
+from pathlib import Path
 from analytics.models import ReportSchedule
+from analytics.recurrence import RecurrenceCalculator
 from api.views import build_email_connection, generate_dashboard_report_pdf
 from django.core.mail import EmailMessage
 import logging
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +39,7 @@ class Command(BaseCommand):
         now = timezone.now()
         
         # Récupérer les rapports programmés non encore envoyés
+        # Pour les rapports récurrents, on traite les occurrences (pas les parents si déjà envoyés)
         scheduled_reports = ReportSchedule.objects.filter(
             scheduled_at__lte=now,
             sent=False
@@ -82,6 +87,29 @@ class Command(BaseCommand):
                 try:
                     connection = mail_ctx['connection']
                     
+                    # Fonction helper pour obtenir le PDF (stocké ou généré)
+                    def get_pdf_bytes(dashboard_name):
+                        """Récupère le PDF depuis le stockage ou le génère si absent"""
+                        # Vérifier si le PDF est stocké
+                        if report.pdfs_data and dashboard_name in report.pdfs_data:
+                            pdf_path = report.pdfs_data[dashboard_name]
+                            full_path = Path(settings.MEDIA_ROOT) / pdf_path
+                            
+                            if full_path.exists():
+                                self.stdout.write(f'  → Utilisation du PDF stocké pour {dashboard_name}')
+                                with open(full_path, 'rb') as f:
+                                    return f.read()
+                            else:
+                                self.stdout.write(
+                                    self.style.WARNING(
+                                        f'  ⚠ PDF stocké introuvable pour {dashboard_name}, génération...'
+                                    )
+                                )
+                        
+                        # Fallback : générer le PDF
+                        self.stdout.write(f'  → Génération du PDF pour {dashboard_name}')
+                        return generate_dashboard_report_pdf(dashboard_name)
+                    
                     # Générer les PDFs pour chaque dashboard
                     if len(dashboards_list) > 1:
                         # Plusieurs dashboards : envoyer plusieurs PDFs séparés
@@ -98,7 +126,7 @@ class Command(BaseCommand):
                         
                         # Attacher un PDF pour chaque dashboard
                         for dashboard in dashboards_list:
-                            pdf_bytes = generate_dashboard_report_pdf(dashboard)
+                            pdf_bytes = get_pdf_bytes(dashboard)
                             filename = f"report_{dashboard}_{report.id}.pdf"
                             msg.attach(
                                 filename,
@@ -108,7 +136,7 @@ class Command(BaseCommand):
                     else:
                         # Un seul dashboard : envoyer un seul PDF
                         dashboard = dashboards_list[0] if dashboards_list else report.dashboard
-                        pdf_bytes = generate_dashboard_report_pdf(dashboard)
+                        pdf_bytes = get_pdf_bytes(dashboard)
                         
                         subject = f"SIGETI - Report: {report.name}"
                         body = f"Veuillez trouver ci-joint le rapport PDF pour le tableau de bord '{dashboard}'."
@@ -152,6 +180,10 @@ class Command(BaseCommand):
                     if mail_ctx['instance']:
                         mail_ctx['instance'].mark_test_result(True)
                     sent_count += 1
+                    
+                    # Si c'est un rapport récurrent, créer la prochaine occurrence
+                    if report.is_recurring and report.recurrence_type != 'none':
+                        self._create_next_occurrence(report)
                 else:
                     # En cas d'échec, on peut choisir de ne pas marquer comme envoyé
                     # pour permettre une nouvelle tentative plus tard
@@ -179,4 +211,88 @@ class Command(BaseCommand):
                 self.style.WARNING(f'  Rapports en échec: {failed_count}')
             )
         self.stdout.write('='*50)
+
+    def _create_next_occurrence(self, report):
+        """Crée la prochaine occurrence d'un rapport récurrent"""
+        try:
+            # Calculer la prochaine occurrence
+            next_occurrence_dt = RecurrenceCalculator.calculate_next_occurrence(
+                report,
+                from_datetime=timezone.now()
+            )
+            
+            if not next_occurrence_dt:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'  ⚠ Aucune prochaine occurrence pour le rapport récurrent {report.id} '
+                        f'(date de fin atteinte ou configuration invalide)'
+                    )
+                )
+                return
+            
+            # Déterminer le rapport parent (le premier de la série)
+            parent = report.parent_schedule if report.parent_schedule else report
+            
+            # Créer le nouveau rapport
+            next_report = ReportSchedule(
+                name=report.name,
+                dashboard=report.dashboard,
+                dashboards=report.dashboards.copy() if report.dashboards else [],
+                scheduled_at=next_occurrence_dt,
+                recipients=report.recipients,
+                created_by=report.created_by,
+                is_recurring=True,
+                recurrence_type=report.recurrence_type,
+                recurrence_interval=report.recurrence_interval,
+                recurrence_minute=report.recurrence_minute,
+                recurrence_hour=report.recurrence_hour,
+                recurrence_days_of_week=report.recurrence_days_of_week.copy() if report.recurrence_days_of_week else [],
+                recurrence_day_of_month=report.recurrence_day_of_month,
+                recurrence_week_of_month=report.recurrence_week_of_month,
+                recurrence_month=report.recurrence_month,
+                recurrence_workdays_only=report.recurrence_workdays_only,
+                recurrence_hour_range_start=report.recurrence_hour_range_start,
+                recurrence_hour_range_end=report.recurrence_hour_range_end,
+                recurrence_hour_range_interval=report.recurrence_hour_range_interval,
+                recurrence_end_date=report.recurrence_end_date,
+                parent_schedule=parent,
+                occurrence_number=report.occurrence_number + 1,
+            )
+            next_report.save()
+            
+            # Copier les PDFs du rapport actuel vers le nouveau (ils seront régénérés au moment de l'envoi si nécessaire)
+            if report.pdfs_data:
+                try:
+                    source_dir = Path(settings.MEDIA_ROOT) / 'reports' / str(report.id)
+                    target_dir = Path(settings.MEDIA_ROOT) / 'reports' / str(next_report.id)
+                    
+                    if source_dir.exists():
+                        target_dir.mkdir(parents=True, exist_ok=True)
+                        # Copier les fichiers PDF
+                        pdfs_data_copy = {}
+                        for dashboard_name, pdf_path in report.pdfs_data.items():
+                            source_file = source_dir / f"{dashboard_name}.pdf"
+                            if source_file.exists():
+                                target_file = target_dir / f"{dashboard_name}.pdf"
+                                shutil.copy2(source_file, target_file)
+                                pdfs_data_copy[dashboard_name] = f"reports/{next_report.id}/{dashboard_name}.pdf"
+                        
+                        next_report.pdfs_data = pdfs_data_copy
+                        next_report.save(update_fields=['pdfs_data'])
+                except Exception as e:
+                    logger.warning(f"Impossible de copier les PDFs pour l'occurrence suivante: {e}")
+                    # Ce n'est pas bloquant, les PDFs seront régénérés au moment de l'envoi
+            
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'  ✓ Prochaine occurrence créée: {next_occurrence_dt.strftime("%Y-%m-%d %H:%M:%S")} '
+                    f'(Occurrence #{next_report.occurrence_number})'
+                )
+            )
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la création de la prochaine occurrence pour le rapport {report.id}: {str(e)}")
+            self.stdout.write(
+                self.style.ERROR(f'  ✗ Erreur lors de la création de la prochaine occurrence: {str(e)}')
+            )
 

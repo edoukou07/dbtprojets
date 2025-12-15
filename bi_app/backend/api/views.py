@@ -10,7 +10,7 @@ from django.db.models.functions import Extract
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from analytics.models import (
+from analytics.models import (  
     MartPerformanceFinanciere,
     MartOccupationZones,
     MartPortefeuilleClients,
@@ -23,6 +23,10 @@ from analytics.models import (
     MartCreancesAgees
 )
 from .serializers import (
+    MartCreancesAgeesSerializer,
+    MartEmploisCreesSerializer,
+    MartImplantationSuiviSerializer,
+    MartIndemnisationsSerializer,
     MartPerformanceFinanciereSerializer,
     MartOccupationZonesSerializer,
     MartPortefeuilleClientsSerializer,
@@ -37,6 +41,8 @@ from django.core.mail import EmailMessage, get_connection
 from django.conf import settings
 import csv
 import io
+import os
+from pathlib import Path
 from django.utils import timezone
 from .cache_decorators import cache_api_response
 from django.db.utils import OperationalError, ProgrammingError
@@ -232,15 +238,16 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             summary['taux_recouvrement'] = 0
         
-        # Calculate delai_moyen_paiement from mart data (already in days as DECIMAL)
-        # The mart stores delai_moyen_paiement as INTERVAL, need to extract days
+        # Handle delai_moyen_paiement - calculer directement à partir des vraies factures
         from django.db import connection
         cursor = connection.cursor()
         
         cursor.execute("""
-            SELECT ROUND(AVG(EXTRACT(EPOCH FROM delai_moyen_paiement) / 86400))
-            FROM dwh_marts_financier.mart_performance_financiere
-            WHERE delai_moyen_paiement IS NOT NULL
+            SELECT ROUND(AVG(EXTRACT(DAY FROM (date_paiement - date_creation))))
+            FROM factures
+            WHERE date_paiement IS NOT NULL
+              AND date_creation IS NOT NULL
+              AND date_paiement >= date_creation
         """)
         
         delai_result = cursor.fetchone()
@@ -262,6 +269,7 @@ class MartPerformanceFinanciereViewSet(viewsets.ReadOnlyModelViewSet):
             summary['taux_recouvrement_moyen'] = summary['taux_recouvrement'] or 0  # Fallback to average if no amounts
         
         return Response(summary)
+
     
     @action(detail=False, methods=['get'])
     @cache_api_response('financier_by_zone', timeout=300)
@@ -1734,14 +1742,148 @@ class ReportScheduleViewSet(viewsets.ModelViewSet):
     queryset = ReportSchedule.objects.all().order_by('-scheduled_at')
     serializer_class = ReportScheduleSerializer
 
+    def _save_pdfs(self, report_instance, pdfs_from_request):
+        """Sauvegarde les PDFs dans le système de fichiers et met à jour pdfs_data"""
+        if not pdfs_from_request:
+            return
+        
+        # Créer le répertoire pour ce rapport
+        report_dir = Path(settings.MEDIA_ROOT) / 'reports' / str(report_instance.id)
+        report_dir.mkdir(parents=True, exist_ok=True)
+        
+        pdfs_data = {}
+        
+        # Sauvegarder chaque PDF
+        for key, file in pdfs_from_request.items():
+            if key.startswith('pdf_'):
+                dashboard_name = key.replace('pdf_', '')
+                # Valider le type de fichier
+                if file.content_type != 'application/pdf':
+                    continue
+                
+                # Limiter la taille (par exemple 50MB)
+                if file.size > 50 * 1024 * 1024:
+                    continue
+                
+                # Nom du fichier
+                filename = f"{dashboard_name}.pdf"
+                file_path = report_dir / filename
+                
+                # Sauvegarder le fichier
+                with open(file_path, 'wb') as f:
+                    for chunk in file.chunks():
+                        f.write(chunk)
+                
+                # Stocker le chemin relatif dans pdfs_data
+                relative_path = f"reports/{report_instance.id}/{filename}"
+                pdfs_data[dashboard_name] = relative_path
+        
+        # Mettre à jour pdfs_data
+        if pdfs_data:
+            report_instance.pdfs_data = pdfs_data
+            report_instance.save(update_fields=['pdfs_data'])
+
+    def _cleanup_pdfs(self, report_instance):
+        """Supprime les PDFs stockés pour ce rapport"""
+        if not report_instance.pdfs_data:
+            return
+        
+        report_dir = Path(settings.MEDIA_ROOT) / 'reports' / str(report_instance.id)
+        if report_dir.exists():
+            # Supprimer tous les fichiers dans le répertoire
+            for file_path in report_dir.glob('*.pdf'):
+                try:
+                    file_path.unlink()
+                except Exception:
+                    pass
+            
+            # Supprimer le répertoire s'il est vide
+            try:
+                report_dir.rmdir()
+            except Exception:
+                pass
+
     def perform_create(self, serializer):
         # attach user if authenticated
         user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(created_by=user)
+        report_instance = serializer.save(created_by=user)
+        
+        # Gérer les PDFs si présents dans la requête
+        if self.request.FILES:
+            pdfs_from_request = {k: v for k, v in self.request.FILES.items() if k.startswith('pdf_')}
+            if pdfs_from_request:
+                self._save_pdfs(report_instance, pdfs_from_request)
 
     def perform_update(self, serializer):
-        # Keep existing created_by when updating
-        serializer.save()
+        # Récupérer l'instance avant la mise à jour pour nettoyer les anciens PDFs
+        old_instance = serializer.instance
+        
+        # Si on modifie un rapport récurrent parent, supprimer les occurrences futures non envoyées
+        # car elles seront recréées avec la nouvelle configuration
+        if old_instance.is_recurring and not old_instance.parent_schedule:
+            occurrences = ReportSchedule.objects.filter(
+                parent_schedule=old_instance,
+                sent=False
+            )
+            for occurrence in occurrences:
+                self._cleanup_pdfs(occurrence)
+                occurrence.delete()
+        
+        # Sauvegarder les modifications
+        report_instance = serializer.save()
+        
+        # Si de nouveaux PDFs sont fournis, nettoyer les anciens et sauvegarder les nouveaux
+        if self.request.FILES:
+            pdfs_from_request = {k: v for k, v in self.request.FILES.items() if k.startswith('pdf_')}
+            if pdfs_from_request:
+                # Nettoyer les anciens PDFs
+                self._cleanup_pdfs(old_instance)
+                # Sauvegarder les nouveaux PDFs
+                self._save_pdfs(report_instance, pdfs_from_request)
+
+    def perform_destroy(self, instance):
+        """Nettoie les PDFs avant de supprimer le rapport. 
+        Si c'est un rapport récurrent parent, supprime aussi toutes les occurrences futures."""
+        # Si c'est un rapport parent récurrent, supprimer toutes les occurrences futures non envoyées
+        if instance.is_recurring and not instance.parent_schedule:
+            # Supprimer toutes les occurrences futures non envoyées
+            occurrences = ReportSchedule.objects.filter(
+                parent_schedule=instance,
+                sent=False
+            )
+            for occurrence in occurrences:
+                self._cleanup_pdfs(occurrence)
+                occurrence.delete()
+        elif instance.parent_schedule:
+            # Si c'est une occurrence, supprimer seulement celle-ci
+            pass
+        
+        # Nettoyer les PDFs et supprimer
+        self._cleanup_pdfs(instance)
+        instance.delete()
+
+    @action(detail=True, methods=['get'])
+    def next_occurrence(self, request, pk=None):
+        """Retourne la prochaine occurrence calculée pour un rapport récurrent"""
+        from analytics.recurrence import RecurrenceCalculator
+        
+        report = self.get_object()
+        if not report.is_recurring or report.recurrence_type == 'none':
+            return Response({
+                'error': 'Ce rapport n\'est pas récurrent'
+            }, status=400)
+        
+        next_dt = RecurrenceCalculator.calculate_next_occurrence(report)
+        if not next_dt:
+            return Response({
+                'next_occurrence': None,
+                'message': 'Aucune occurrence future (date de fin atteinte)'
+            })
+        
+        return Response({
+            'next_occurrence': next_dt.isoformat(),
+            'occurrence_number': report.occurrence_number + 1
+        })
 
     @action(detail=False, methods=['post'])
     def send_scheduled(self, request):

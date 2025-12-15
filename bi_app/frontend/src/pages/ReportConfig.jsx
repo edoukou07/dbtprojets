@@ -23,6 +23,22 @@ const ReportConfig = () => {
   const [editingReport, setEditingReport] = useState(null)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  
+  // Recurrence state
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [recurrenceType, setRecurrenceType] = useState('none')
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  const [recurrenceMinute, setRecurrenceMinute] = useState(null)
+  const [recurrenceHour, setRecurrenceHour] = useState(null)
+  const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState([])
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState(null)
+  const [recurrenceWeekOfMonth, setRecurrenceWeekOfMonth] = useState(null)
+  const [recurrenceMonth, setRecurrenceMonth] = useState(null)
+  const [recurrenceWorkdaysOnly, setRecurrenceWorkdaysOnly] = useState(false)
+  const [recurrenceHourRangeStart, setRecurrenceHourRangeStart] = useState('')
+  const [recurrenceHourRangeEnd, setRecurrenceHourRangeEnd] = useState('')
+  const [recurrenceHourRangeInterval, setRecurrenceHourRangeInterval] = useState(60)
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
   const availableDashboards = [
     { value: 'dashboard', label: 'Tableau de bord', icon: '📊', color: 'bg-blue-50 border-blue-200' },
@@ -51,101 +67,14 @@ const ReportConfig = () => {
       }
     }
     
-    // Fonction pour vérifier et envoyer les rapports programmés avec react-pdf
-    const checkAndSendScheduledReports = async () => {
-      try {
-        // Récupérer la liste des rapports pour vérifier lesquels doivent être envoyés
-        const res = await reportsAPI.list()
-        const reports = res.data.results || []
-        
-        // Filtrer les rapports programmés non envoyés dont la date est arrivée
-        const now = new Date()
-        const pendingReports = reports.filter(report => {
-          if (report.sent) return false
-          const scheduledDate = new Date(report.scheduled_at)
-          return scheduledDate <= now
-        })
-        
-        if (pendingReports.length === 0) {
-          return // Aucun rapport à envoyer
-        }
-        
-        console.log(`${pendingReports.length} rapport(s) programmé(s) à envoyer`)
-        
-        // Pour chaque rapport, générer les PDFs avec react-pdf et les envoyer
-        for (const report of pendingReports) {
-          try {
-            const dashboards = report.dashboards && report.dashboards.length > 0 
-              ? report.dashboards 
-              : (report.dashboard ? [report.dashboard] : [])
-            
-            if (dashboards.length === 0) {
-              console.warn(`Rapport ${report.id} n'a pas de dashboards définis`)
-              continue
-            }
-            
-            // Générer les PDFs avec react-pdf (comme pour "envoyer maintenant")
-            const formData = new FormData()
-            
-            for (const dashboard of dashboards) {
-              try {
-                console.log(`Génération du PDF pour ${dashboard} (rapport ${report.id})...`)
-                const blob = await generateDashboardPDF(dashboard)
-                const file = new File([blob], `${dashboard}.pdf`, { type: 'application/pdf' })
-                formData.append(`pdf_${dashboard}`, file)
-                console.log(`PDF généré avec succès pour ${dashboard}`)
-              } catch (error) {
-                console.error(`Erreur lors de la génération du PDF pour ${dashboard}:`, error)
-                throw new Error(`Impossible de générer le PDF pour ${dashboard}: ${error.message}`)
-              }
-            }
-            
-            // Envoyer les PDFs au backend via send_now (qui accepte les PDFs react-pdf)
-            console.log(`Envoi des PDFs au backend pour le rapport ${report.id}...`)
-            const response = await api.post(
-              `/reports/${report.id}/send_now/`,
-              formData,
-              {
-                headers: {
-                  'Content-Type': 'multipart/form-data',
-                },
-              }
-            )
-            
-            console.log(`✓ Rapport ${report.id} envoyé avec succès`)
-          } catch (error) {
-            console.error(`Erreur lors de l'envoi du rapport ${report.id}:`, error)
-            // Continuer avec les autres rapports même en cas d'erreur
-          }
-        }
-        
-        // Rafraîchir la liste après l'envoi pour voir les statuts mis à jour
-        await fetchReports(false)
-      } catch (error) {
-        // Ne pas afficher d'erreur si c'est juste une erreur réseau normale
-        if (error.response && error.response.status >= 500) {
-          console.error('Erreur serveur lors de la vérification des rapports programmés:', error)
-        } else if (!error.response) {
-          // Erreur réseau (pas de réponse)
-          console.warn('Impossible de vérifier les rapports programmés (réseau)')
-        }
-      }
-    }
-    
     // Chargement initial avec indicateur de chargement
     fetchReports(true)
     
-    // Vérifier immédiatement s'il y a des rapports à envoyer
-    checkAndSendScheduledReports()
-    
-    // Vérifier et envoyer les rapports programmés toutes les 5 secondes pour un envoi quasi-immédiat
-    const sendInterval = setInterval(checkAndSendScheduledReports, 5000) // Toutes les 5 secondes
-    
-    // Rafraîchir la liste toutes les 15 secondes pour voir les statuts mis à jour (sans indicateur de chargement)
-    const refreshInterval = setInterval(() => fetchReports(false), 15000)
+    // Rafraîchir la liste toutes les 30 secondes pour voir les statuts mis à jour
+    // (les envois sont maintenant gérés par le management command backend)
+    const refreshInterval = setInterval(() => fetchReports(false), 30000)
     
     return () => {
-      clearInterval(sendInterval)
       clearInterval(refreshInterval)
     }
   }, [])
@@ -156,6 +85,21 @@ const ReportConfig = () => {
     setDashboard(report.dashboard)
     setDatetime(new Date(report.scheduled_at).toISOString().slice(0, 16))
     setRecipients(report.recipients || '')
+    // Recurrence fields
+    setIsRecurring(report.is_recurring || false)
+    setRecurrenceType(report.recurrence_type || 'none')
+    setRecurrenceInterval(report.recurrence_interval || 1)
+    setRecurrenceMinute(report.recurrence_minute)
+    setRecurrenceHour(report.recurrence_hour)
+    setRecurrenceDaysOfWeek(report.recurrence_days_of_week || [])
+    setRecurrenceDayOfMonth(report.recurrence_day_of_month)
+    setRecurrenceWeekOfMonth(report.recurrence_week_of_month)
+    setRecurrenceMonth(report.recurrence_month)
+    setRecurrenceWorkdaysOnly(report.recurrence_workdays_only || false)
+    setRecurrenceHourRangeStart(report.recurrence_hour_range_start || '')
+    setRecurrenceHourRangeEnd(report.recurrence_hour_range_end || '')
+    setRecurrenceHourRangeInterval(report.recurrence_hour_range_interval || 60)
+    setRecurrenceEndDate(report.recurrence_end_date ? new Date(report.recurrence_end_date).toISOString().slice(0, 16) : '')
     setMessage(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -167,6 +111,21 @@ const ReportConfig = () => {
     setDashboards(['financier'])
     setDatetime('')
     setRecipients('')
+    // Reset recurrence fields
+    setIsRecurring(false)
+    setRecurrenceType('none')
+    setRecurrenceInterval(1)
+    setRecurrenceMinute(null)
+    setRecurrenceHour(null)
+    setRecurrenceDaysOfWeek([])
+    setRecurrenceDayOfMonth(null)
+    setRecurrenceWeekOfMonth(null)
+    setRecurrenceMonth(null)
+    setRecurrenceWorkdaysOnly(false)
+    setRecurrenceHourRangeStart('')
+    setRecurrenceHourRangeEnd('')
+    setRecurrenceHourRangeInterval(60)
+    setRecurrenceEndDate('')
     setMessage(null)
   }
 
@@ -392,34 +351,88 @@ const ReportConfig = () => {
 
     try {
       setLoading(true)
-      const payload = {
-        name,
-        dashboards, // Envoyer la liste des dashboards
-        scheduled_at: datetime || new Date().toISOString(),
-        recipients,
+      
+      // Toujours générer les PDFs avec react-pdf lors de la planification
+      console.log('Génération des PDFs pour la planification...')
+      const formData = new FormData()
+      
+      // Ajouter les données du rapport au FormData
+      formData.append('name', name)
+      formData.append('dashboards', JSON.stringify(dashboards))
+      formData.append('scheduled_at', datetime || new Date().toISOString())
+      formData.append('recipients', recipients)
+      
+      // Ajouter les champs de récurrence
+      formData.append('is_recurring', isRecurring.toString())
+      formData.append('recurrence_type', recurrenceType)
+      if (isRecurring && recurrenceType !== 'none') {
+        if (recurrenceInterval) formData.append('recurrence_interval', recurrenceInterval.toString())
+        if (recurrenceMinute !== null && recurrenceMinute !== '') formData.append('recurrence_minute', recurrenceMinute.toString())
+        if (recurrenceHour !== null && recurrenceHour !== '') formData.append('recurrence_hour', recurrenceHour.toString())
+        if (recurrenceDaysOfWeek.length > 0) formData.append('recurrence_days_of_week', JSON.stringify(recurrenceDaysOfWeek))
+        if (recurrenceDayOfMonth !== null && recurrenceDayOfMonth !== '') formData.append('recurrence_day_of_month', recurrenceDayOfMonth.toString())
+        if (recurrenceWeekOfMonth !== null && recurrenceWeekOfMonth !== '') formData.append('recurrence_week_of_month', recurrenceWeekOfMonth.toString())
+        if (recurrenceMonth !== null && recurrenceMonth !== '') formData.append('recurrence_month', recurrenceMonth.toString())
+        formData.append('recurrence_workdays_only', recurrenceWorkdaysOnly.toString())
+        if (recurrenceHourRangeStart) formData.append('recurrence_hour_range_start', recurrenceHourRangeStart)
+        if (recurrenceHourRangeEnd) formData.append('recurrence_hour_range_end', recurrenceHourRangeEnd)
+        if (recurrenceHourRangeInterval) formData.append('recurrence_hour_range_interval', recurrenceHourRangeInterval.toString())
+        if (recurrenceEndDate) formData.append('recurrence_end_date', new Date(recurrenceEndDate).toISOString())
+      }
+      
+      // Générer un PDF pour chaque dashboard
+      for (const dashboard of dashboards) {
+        try {
+          console.log(`Génération du PDF pour ${dashboard}...`)
+          const blob = await generateDashboardPDF(dashboard)
+          const file = new File([blob], `${dashboard}.pdf`, { type: 'application/pdf' })
+          formData.append(`pdf_${dashboard}`, file)
+          console.log(`PDF généré avec succès pour ${dashboard}`)
+        } catch (error) {
+          console.error(`Erreur lors de la génération du PDF pour ${dashboard}:`, error)
+          throw new Error(`Impossible de générer le PDF pour ${dashboard}: ${error.message}`)
+        }
       }
 
       let res
       if (editingReport) {
-        res = await reportsAPI.update(editingReport.id, payload)
+        // Mise à jour avec PDFs
+        res = await api.put(
+          `/reports/${editingReport.id}/`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        )
         setMessage({ type: 'success', text: '✓ Planification mise à jour avec succès' })
       } else {
-        res = await reportsAPI.create(payload)
+        // Création avec PDFs
+        res = await api.post(
+          '/reports/',
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        )
 
         if (sendNow && res?.data?.id) {
-          // Générer les PDFs avec react-pdf et les envoyer au backend
+          // Envoyer immédiatement avec les PDFs générés par react-pdf
           try {
             await sendPDFsToBackend(res.data.id, dashboards)
             setMessage({ type: 'success', text: '✓ Rapport envoyé immédiatement' })
           } catch (error) {
-            console.error('Erreur lors de l\'envoi des PDFs:', error)
+            console.error('Erreur lors de l\'envoi immédiat:', error)
             setMessage({ 
               type: 'error', 
-              text: 'Erreur lors de la génération/envoi des PDFs: ' + (error?.response?.data?.detail || error.message) 
+              text: 'Erreur lors de l\'envoi: ' + (error?.response?.data?.detail || error.message) 
             })
           }
         } else {
-          setMessage({ type: 'success', text: '✓ Planification enregistrée' })
+          setMessage({ type: 'success', text: '✓ Planification enregistrée avec PDFs générés' })
         }
       }
 
@@ -427,31 +440,13 @@ const ReportConfig = () => {
       const listRes = await reportsAPI.list()
       setReports(listRes.data.results || [])
 
-      // Vérifier immédiatement si le rapport créé/modifié doit être envoyé maintenant
-      // (si la date programmée est dans le passé ou maintenant)
-      if (res?.data?.id) {
-        const scheduledDate = new Date(res.data.scheduled_at)
-        const now = new Date()
-        // Si la date programmée est passée ou dans les 10 prochaines secondes, vérifier immédiatement
-        if (scheduledDate <= new Date(now.getTime() + 10000)) {
-          try {
-            await reportsAPI.sendScheduled()
-            // Rafraîchir à nouveau pour voir le statut mis à jour
-            const updatedList = await reportsAPI.list()
-            setReports(updatedList.data.results || [])
-          } catch (error) {
-            // Ignorer les erreurs silencieusement, le système vérifiera automatiquement dans 5 secondes
-            console.log('Vérification immédiate effectuée, le système continuera de vérifier automatiquement')
-          }
-        }
-      }
-
       if (!editingReport) {
         handleCancel() // Reset form
       } else {
         handleCancel()
       }
     } catch (e) {
+      console.error('Erreur lors de la planification:', e)
       setMessage({ 
         type: 'error', 
         text: 'Erreur: ' + (e?.response?.data?.detail || e.message) 
@@ -603,7 +598,7 @@ const ReportConfig = () => {
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                   <Calendar size={16} />
-                  Date & Heure
+                  Date & Heure (Première occurrence)
                 </label>
                 <input 
                   type="datetime-local" 
@@ -612,6 +607,411 @@ const ReportConfig = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {!datetime && <p className="text-xs text-gray-500 mt-1">Laissez vide pour un envoi immédiat</p>}
+              </div>
+
+              {/* Récurrence */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Clock size={16} />
+                    Envoie récurrent
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRecurring}
+                      onChange={(e) => {
+                        setIsRecurring(e.target.checked)
+                        if (!e.target.checked) {
+                          setRecurrenceType('none')
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {isRecurring && (
+                  <div className="space-y-4 mt-4">
+                    {/* Type de récurrence */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">Type de récurrence</label>
+                      <select
+                        value={recurrenceType}
+                        onChange={(e) => setRecurrenceType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="minute">Par minute</option>
+                        <option value="hour">Par heure</option>
+                        <option value="daily">Quotidien</option>
+                        <option value="weekly">Hebdomadaire</option>
+                        <option value="monthly">Mensuel</option>
+                        <option value="yearly">Annuel</option>
+                        <option value="custom">Personnalisé</option>
+                      </select>
+                    </div>
+
+                    {/* Configuration selon le type */}
+                    {recurrenceType === 'minute' && (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Toutes les X minutes</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={recurrenceInterval}
+                            onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="1"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {recurrenceType === 'hour' && (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Toutes les X heures</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={recurrenceInterval}
+                            onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <div className="border-t pt-2">
+                          <label className="block text-xs font-medium text-gray-700 mb-2">Plage horaire</label>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            <input
+                              type="time"
+                              value={recurrenceHourRangeStart}
+                              onChange={(e) => setRecurrenceHourRangeStart(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="Début"
+                            />
+                            <input
+                              type="time"
+                              value={recurrenceHourRangeEnd}
+                              onChange={(e) => setRecurrenceHourRangeEnd(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="Fin"
+                            />
+                          </div>
+                          <input
+                            type="number"
+                            min="1"
+                            value={recurrenceHourRangeInterval}
+                            onChange={(e) => setRecurrenceHourRangeInterval(parseInt(e.target.value) || 60)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="Intervalle (minutes)"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {recurrenceType === 'daily' && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Heure (0-23)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={recurrenceHour || ''}
+                              onChange={(e) => setRecurrenceHour(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Minute (0-59)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={recurrenceMinute || ''}
+                              onChange={(e) => setRecurrenceMinute(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={recurrenceWorkdaysOnly}
+                            onChange={(e) => setRecurrenceWorkdaysOnly(e.target.checked)}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-xs text-gray-700">Uniquement jours ouvrables (lundi-vendredi)</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {recurrenceType === 'weekly' && (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-2">Jours de la semaine</label>
+                          <div className="grid grid-cols-7 gap-1">
+                            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  const newDays = recurrenceDaysOfWeek.includes(idx)
+                                    ? recurrenceDaysOfWeek.filter(d => d !== idx)
+                                    : [...recurrenceDaysOfWeek, idx]
+                                  setRecurrenceDaysOfWeek(newDays.sort())
+                                }}
+                                className={`px-2 py-1 text-xs rounded border ${
+                                  recurrenceDaysOfWeek.includes(idx)
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setRecurrenceDaysOfWeek([0, 1, 2, 3, 4])}
+                              className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+                            >
+                              Jours ouvrables
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRecurrenceDaysOfWeek([5, 6])}
+                              className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+                            >
+                              Week-end
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Heure (0-23)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={recurrenceHour || ''}
+                              onChange={(e) => setRecurrenceHour(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Minute (0-59)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={recurrenceMinute || ''}
+                              onChange={(e) => setRecurrenceMinute(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {recurrenceType === 'monthly' && (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-2">Type</label>
+                          <select
+                            value={recurrenceWeekOfMonth ? 'relative' : recurrenceDayOfMonth === -1 ? 'last' : 'fixed'}
+                            onChange={(e) => {
+                              if (e.target.value === 'relative') {
+                                setRecurrenceDayOfMonth(null)
+                                setRecurrenceWeekOfMonth(1)
+                                setRecurrenceDaysOfWeek([0])
+                              } else if (e.target.value === 'last') {
+                                setRecurrenceDayOfMonth(-1)
+                                setRecurrenceWeekOfMonth(null)
+                              } else {
+                                setRecurrenceDayOfMonth(1)
+                                setRecurrenceWeekOfMonth(null)
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          >
+                            <option value="fixed">Jour fixe du mois</option>
+                            <option value="relative">Jour relatif (ex: 1er lundi)</option>
+                            <option value="last">Dernier jour du mois</option>
+                          </select>
+                        </div>
+                        {recurrenceWeekOfMonth ? (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Semaine (1-4)</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="4"
+                                value={recurrenceWeekOfMonth || 1}
+                                onChange={(e) => setRecurrenceWeekOfMonth(parseInt(e.target.value) || 1)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Jour de la semaine</label>
+                              <select
+                                value={recurrenceDaysOfWeek[0] ?? 0}
+                                onChange={(e) => setRecurrenceDaysOfWeek([parseInt(e.target.value)])}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              >
+                                <option value="0">Lundi</option>
+                                <option value="1">Mardi</option>
+                                <option value="2">Mercredi</option>
+                                <option value="3">Jeudi</option>
+                                <option value="4">Vendredi</option>
+                                <option value="5">Samedi</option>
+                                <option value="6">Dimanche</option>
+                              </select>
+                            </div>
+                          </div>
+                        ) : recurrenceDayOfMonth !== -1 ? (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Jour du mois (1-31)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="31"
+                              value={recurrenceDayOfMonth || ''}
+                              onChange={(e) => setRecurrenceDayOfMonth(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        ) : null}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Heure (0-23)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={recurrenceHour || ''}
+                              onChange={(e) => setRecurrenceHour(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Minute (0-59)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={recurrenceMinute || ''}
+                              onChange={(e) => setRecurrenceMinute(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={recurrenceWorkdaysOnly}
+                            onChange={(e) => setRecurrenceWorkdaysOnly(e.target.checked)}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-xs text-gray-700">Premier jour ouvrable du mois</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {recurrenceType === 'yearly' && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Mois (1-12)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="12"
+                              value={recurrenceMonth || ''}
+                              onChange={(e) => setRecurrenceMonth(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Jour (1-31)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="31"
+                              value={recurrenceDayOfMonth || ''}
+                              onChange={(e) => setRecurrenceDayOfMonth(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Heure (0-23)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={recurrenceHour || ''}
+                              onChange={(e) => setRecurrenceHour(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Minute (0-59)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={recurrenceMinute || ''}
+                              onChange={(e) => setRecurrenceMinute(e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {recurrenceType === 'custom' && (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Tous les X jours</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={recurrenceInterval}
+                            onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={recurrenceWorkdaysOnly}
+                            onChange={(e) => setRecurrenceWorkdaysOnly(e.target.checked)}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-xs text-gray-700">Uniquement jours ouvrables</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Date de fin optionnelle */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Date de fin (optionnelle)</label>
+                      <input
+                        type="datetime-local"
+                        value={recurrenceEndDate}
+                        onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Destinataires */}
@@ -705,16 +1105,60 @@ const ReportConfig = () => {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 text-sm mb-4 pb-4 border-b border-gray-100">
+                      <div className="grid grid-cols-2 gap-3 text-sm mb-3 pb-3 border-b border-gray-100">
                         <div className="flex items-center gap-2 text-gray-700">
                           <Calendar size={16} className="text-gray-400" />
-                          {new Date(report.scheduled_at).toLocaleString('fr-FR')}
+                          <div>
+                            <div>{new Date(report.scheduled_at).toLocaleString('fr-FR')}</div>
+                            {report.is_recurring && report.recurrence_type !== 'none' && (
+                              <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                <Clock size={12} />
+                                {report.parent_schedule ? `Occurrence #${report.occurrence_number}` : 'Récurrent'}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700">
                           <Mail size={16} className="text-gray-400" />
                           {report.recipients?.split(',').length || 0} destinataire(s)
                         </div>
                       </div>
+
+                      {/* Informations de récurrence */}
+                      {report.is_recurring && report.recurrence_type !== 'none' && (
+                        <div className="mb-3 pb-3 border-b border-gray-100">
+                          <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
+                            <Clock size={12} />
+                            <span className="font-medium">Récurrence:</span>
+                            <span>
+                              {report.recurrence_type === 'minute' && `Toutes les ${report.recurrence_interval || 1} minute(s)`}
+                              {report.recurrence_type === 'hour' && `Toutes les ${report.recurrence_interval || 1} heure(s)`}
+                              {report.recurrence_type === 'daily' && `Tous les jours${report.recurrence_workdays_only ? ' (jours ouvrables)' : ''}`}
+                              {report.recurrence_type === 'weekly' && `Hebdomadaire`}
+                              {report.recurrence_type === 'monthly' && `Mensuel`}
+                              {report.recurrence_type === 'yearly' && `Annuel`}
+                              {report.recurrence_type === 'custom' && `Tous les ${report.recurrence_interval || 1} jour(s)`}
+                            </span>
+                          </div>
+                          {report.recurrence_end_date && (
+                            <div className="text-xs text-gray-500">
+                              Fin le {new Date(report.recurrence_end_date).toLocaleString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                              })}
+                            </div>
+                          )}
+                          {!report.parent_schedule && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Occurrence #{report.occurrence_number || 1}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {report.sent && report.sent_at && (
                         <div className="text-xs text-gray-500 mb-3 pb-3 border-b border-gray-100">

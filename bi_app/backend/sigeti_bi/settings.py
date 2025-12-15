@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     # 'django_ratelimit',  # Rate limiting - disabled due to cache backend issues
     
     # Local apps
-    'analytics',
+    'analytics.apps.AnalyticsConfig',  # AppConfig avec scheduler automatique
     'api',
     'ai_chat',  # AI Chatbot
 ]
@@ -108,6 +108,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (User uploaded files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -282,7 +286,7 @@ LOGGING = {
         },
         'api_file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'api_requests.log',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 10,
@@ -290,7 +294,7 @@ LOGGING = {
         },
         'api_json': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'api_requests.json',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 5,
@@ -298,7 +302,7 @@ LOGGING = {
         },
         'error_file': {
             'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'errors.log',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 10,
@@ -306,7 +310,7 @@ LOGGING = {
         },
         'slow_requests_file': {
             'level': 'WARNING',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'slow_requests.log',
             'maxBytes': 5 * 1024 * 1024,  # 5 MB
             'backupCount': 5,
