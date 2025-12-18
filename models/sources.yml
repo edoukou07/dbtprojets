@@ -92,3 +92,31 @@ sources:
         
       - name: collecte_agents
         description: "Data collections by agent"
+        
+      - name: historique_demandes
+        description: "History of actions on attribution requests - tracks all workflow transitions"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: demande_attribution_id
+            description: "Reference to the attribution request"
+          - name: utilisateur_id
+            description: "User who performed the action"
+          - name: action
+            description: "Type of action performed"
+          - name: date_action
+            description: "Timestamp of the action"
+          - name: etape_source
+            description: "Source step number"
+          - name: etape_destination
+            description: "Destination step number"
+            
+      - name: users
+        description: "System users (agents, admins)"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: nom
+            description: "Last name"
+          - name: prenoms
+            description: "First names"

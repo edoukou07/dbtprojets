@@ -54,6 +54,7 @@ from .alert_config_views import (
 from .compliance_views import ComplianceViewSet
 from .compliance_compliance_views import ComplianceComplianceViewSet
 from .rh_views import RhViewSet
+from .temps_traitement_views import TempsTraitementViewSet
 
 router = DefaultRouter()
 router.register(r'financier', MartPerformanceFinanciereViewSet, basename='financier')
@@ -63,6 +64,7 @@ router.register(r'operationnel', MartKPIOperationnelsViewSet, basename='operatio
 router.register(r'compliance', ComplianceViewSet, basename='compliance')
 router.register(r'compliance-compliance', ComplianceComplianceViewSet, basename='compliance-compliance')
 router.register(r'rh', RhViewSet, basename='rh')
+router.register(r'temps-traitement', TempsTraitementViewSet, basename='temps-traitement')
 router.register(r'implantation-suivi', MartImplantationSuiviViewSet, basename='implantation-suivi')
 router.register(r'indemnisations', MartIndemnisationsViewSet, basename='indemnisations')
 router.register(r'emplois-crees', MartEmploisCreesViewSet, basename='emplois-crees')

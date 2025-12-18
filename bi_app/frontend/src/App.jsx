@@ -15,6 +15,7 @@ import Operationnel from './pages/Operationnel'
 import ComplianceInfractions from './pages/ComplianceInfractions'
 import ComplianceCompliance from './pages/ComplianceCompliance'
 import RH from './pages/RH'
+import TempsTraitement from './pages/TempsTraitement'
 import TestMap from './pages/TestMap'
 import ChatBot from './components/ChatBot'
 import AlertsConfig from './components/AlertsConfig'
@@ -78,6 +79,11 @@ function App() {
           <Route path="rh" element={
             <ProtectedDashboardRoute dashboard="rh">
               <RH />
+            </ProtectedDashboardRoute>
+          } />
+          <Route path="temps-traitement" element={
+            <ProtectedDashboardRoute dashboard="rh">
+              <TempsTraitement />
             </ProtectedDashboardRoute>
           } />
           <Route path="chatbot" element={
