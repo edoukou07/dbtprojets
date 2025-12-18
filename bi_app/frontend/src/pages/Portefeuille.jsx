@@ -94,98 +94,6 @@ export default function Portefeuille() {
     return colors[segment] || '#64748b'
   }
 
-  // Préparer données pour export
-  const prepareExportData = () => {
-    const data = []
-
-    // Résumé Global
-    if (summary) {
-      data.push({ 'Catégorie': 'RÉSUMÉ GLOBAL', 'Métrique': '', 'Valeur': '' })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Total Clients',
-        'Valeur': summary.total_clients
-      })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Créances Totales',
-        'Valeur': formatCurrency(summary.ca_impaye)
-      })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Taux Impayé',
-        'Valeur': formatPercent(summary.taux_impaye_pct)
-      })
-      data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Délai Moyen Paiement',
-        'Valeur': `${Math.round(summary.delai_moyen_paiement || 0)} jours`
-      })
-       data.push({
-        'Catégorie': 'Global',
-        'Métrique': 'Factures en Retard',
-        'Valeur': summary.factures_retard_total
-      })
-    }
-
-    // Segmentation
-    if (segmentation?.par_segment) {
-      data.push({ 'Catégorie': '', 'Métrique': '', 'Valeur': '' })
-      data.push({ 'Catégorie': 'SEGMENTATION CLIENTS', 'Métrique': '', 'Valeur': '' })
-      
-      segmentation.par_segment.forEach(seg => {
-         data.push({
-            'Catégorie': 'Segmentation',
-            'Métrique': seg.segment_client,
-            'Valeur': `${seg.nombre_clients} clients - CA: ${formatCurrency(seg.ca_total)}`
-         })
-      })
-    }
-
-    // Risque
-    if (segmentation?.par_niveau_risque) {
-        data.push({ 'Catégorie': '', 'Métrique': '', 'Valeur': '' })
-        data.push({ 'Catégorie': 'ANALYSE RISQUE', 'Métrique': '', 'Valeur': '' })
-        
-        segmentation.par_niveau_risque.forEach(risk => {
-            data.push({
-                'Catégorie': 'Risque',
-                'Métrique': risk.niveau_risque,
-                'Valeur': `${risk.nombre_clients} clients - Créances: ${formatCurrency(risk.ca_impaye)}`
-            })
-        })
-    }
-
-    // Top Clients par CA
-    if (topClients?.top_chiffre_affaires) {
-        data.push({ 'Catégorie': '', 'Métrique': '', 'Valeur': '' })
-        data.push({ 'Catégorie': 'TOP CLIENTS (CA)', 'Métrique': '', 'Valeur': '' })
-        
-        topClients.top_chiffre_affaires.forEach((client, index) => {
-             data.push({
-                'Catégorie': 'Top Clients',
-                'Métrique': `${index + 1}. ${client.raison_sociale}`,
-                'Valeur': `CA: ${formatCurrency(client.chiffre_affaires_total)} - Taux: ${formatPercent(client.taux_paiement_pct)}`
-            })
-        })
-    }
-
-    // Meilleurs Payeurs
-    if (topClients?.meilleurs_payeurs) {
-        data.push({ 'Catégorie': '', 'Métrique': '', 'Valeur': '' })
-        data.push({ 'Catégorie': 'MEILLEURS PAYEURS', 'Métrique': '', 'Valeur': '' })
-        
-        topClients.meilleurs_payeurs.forEach((client, index) => {
-             data.push({
-                'Catégorie': 'Meilleurs Payeurs',
-                'Métrique': `${index + 1}. ${client.raison_sociale}`,
-                'Valeur': `CA: ${formatCurrency(client.chiffre_affaires_total)} - Taux: ${formatPercent(client.taux_paiement_pct)}`
-            })
-        })
-    }
-
-    return data
-  }
 
   return (
     <div className="space-y-8">
@@ -195,15 +103,7 @@ export default function Portefeuille() {
           <h2 className="text-3xl font-bold text-gray-900">Portefeuille Clients</h2>
           <p className="text-gray-600 mt-1">Analyse et segmentation du portefeuille</p>
         </div>
-        <div className="flex items-center gap-4">
-          <ExportButton 
-            data={prepareExportData()} 
-            filename="dashboard_portefeuille"
-            title="Dashboard Portefeuille"
-            showPDF={true}
-            showExcel={true}
-            showCSV={true}
-          />
+        <div className="flex items-center gap-3">
           <Link
             to="/clients"
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"

@@ -948,19 +948,8 @@ export default function Occupation() {
             <div className="p-8 text-center">
               <Building2 className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">
-                {hasActiveFilters 
-                  ? 'Aucune zone ne correspond aux filtres sélectionnés' 
-                  : 'Aucune donnée disponible'}
+                Aucune donnée disponible
               </p>
-              {hasActiveFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm inline-flex items-center gap-1"
-                >
-                  <X className="w-4 h-4" />
-                  Réinitialiser les filtres
-                </button>
-              )}
             </div>
           )}
           </div>

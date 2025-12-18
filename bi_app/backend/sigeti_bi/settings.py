@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     # 'django_ratelimit',  # Rate limiting - disabled due to cache backend issues
     
     # Local apps
-    'analytics',
+    'analytics.apps.AnalyticsConfig',  # AppConfig avec scheduler automatique
     'api',
     'ai_chat',  # AI Chatbot
 ]
@@ -108,6 +108,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (User uploaded files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -282,7 +286,7 @@ LOGGING = {
         },
         'api_file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'api_requests.log',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 10,
@@ -290,7 +294,7 @@ LOGGING = {
         },
         'api_json': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'api_requests.json',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 5,
@@ -298,7 +302,7 @@ LOGGING = {
         },
         'error_file': {
             'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'errors.log',
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 10,
@@ -306,7 +310,7 @@ LOGGING = {
         },
         'slow_requests_file': {
             'level': 'WARNING',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'sigeti_bi.logging_handlers.WindowsCompatibleRotatingFileHandler',
             'filename': LOGS_DIR / 'slow_requests.log',
             'maxBytes': 5 * 1024 * 1024,  # 5 MB
             'backupCount': 5,
@@ -350,6 +354,11 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.Em
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')  # SMTP server host
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))  # SMTP server port
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'  # Use TLS
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # SMTP username/email
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
+if EMAIL_USE_SSL:
+    EMAIL_USE_TLS = False  # éviter TLS+SSL simultanés
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 30)) or None
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'manubento44@gmail.com')  # SMTP username/email
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # SMTP password
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@sigeti-bi.local')  # Sender email
+EMAIL_FILE_PATH = os.getenv('EMAIL_FILE_PATH', str(BASE_DIR / 'tmp' / 'emails'))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'manubento44@gmail.com')  # Sender email

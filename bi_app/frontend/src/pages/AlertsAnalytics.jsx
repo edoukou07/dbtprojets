@@ -11,6 +11,8 @@ import {
   AlertTriangle, TrendingUp, TrendingDown, Clock,
   Activity, DollarSign, Home, Calendar, Target, Filter
 } from 'lucide-react'
+import { pdf } from '@react-pdf/renderer'
+import AlertsAnalyticsPDF from '../components/pdf/AlertsAnalyticsPDF'
 
 const API_URL = 'http://localhost:8000/api'
 
@@ -234,22 +236,44 @@ export default function AlertsAnalytics() {
     }
   })
   
-  // Récupérer les données d'occupation
+  // Récupérer les données d'occupation (par zone pour la heatmap)
   const { data: occupationData, isLoading: occupationLoading, error: occupationError } = useQuery({
     queryKey: ['occupation-zones'],
     queryFn: async () => {
       const token = localStorage.getItem('access_token')
-      const response = await axios.get(`${API_URL}/occupation/`, {
+      const response = await axios.get(`${API_URL}/occupation/by_zone/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      console.log('📊 Réponse API occupation:', response.data)
+      console.log('📊 Réponse API occupation by_zone:', response.data)
       return response.data
     },
     retry: 2,
   })
   
-  // Calculer le taux d'occupation moyen depuis les données d'occupation
+  // Récupérer le summary d'occupation pour le taux moyen correct
+  const { data: occupationSummary } = useQuery({
+    queryKey: ['occupation-summary'],
+    queryFn: async () => {
+      const token = localStorage.getItem('access_token')
+      const response = await axios.get(`${API_URL}/occupation/summary/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      console.log('📊 Réponse API occupation summary:', response.data)
+      return response.data
+    },
+    retry: 2,
+  })
+  
+  // Calculer le taux d'occupation moyen depuis le summary (calcul correct: lots_attribues / total_lots * 100)
   const tauxOccupationMoyen = React.useMemo(() => {
+    // Utiliser le taux d'occupation moyen du summary si disponible (calculé correctement par le backend)
+    if (occupationSummary?.taux_occupation_moyen !== undefined && occupationSummary?.taux_occupation_moyen !== null) {
+      const taux = parseFloat(occupationSummary.taux_occupation_moyen) || 0
+      console.log(`✅ Taux d'occupation moyen depuis summary: ${taux.toFixed(2)}%`)
+      return taux
+    }
+    
+    // Fallback: calculer depuis les données par zone si le summary n'est pas disponible
     const zonesData = occupationData?.results || occupationData?.data || occupationData || []
     
     if (!Array.isArray(zonesData) || zonesData.length === 0) {
@@ -257,46 +281,58 @@ export default function AlertsAnalytics() {
       return 0
     }
     
-    const validZones = zonesData.filter(zone => {
-      const taux = zone.taux_occupation_pct || zone.occupation || zone.taux_occupation
-      return taux !== null && taux !== undefined && !isNaN(taux)
-    })
+    // Calculer correctement: somme des lots attribués / somme des lots totaux * 100
+    const totals = zonesData.reduce((acc, zone) => {
+      const lotsAttribues = parseFloat(zone.lots_attribues || zone.nombre_lots_attribues || 0)
+      const totalLots = parseFloat(zone.nombre_total_lots || zone.total_lots || 0)
+      return {
+        lotsAttribues: acc.lotsAttribues + lotsAttribues,
+        totalLots: acc.totalLots + totalLots
+      }
+    }, { lotsAttribues: 0, totalLots: 0 })
     
-    if (validZones.length === 0) {
-      console.log('⚠️ Aucune zone avec un taux d\'occupation valide')
-      return 0
+    if (totals.totalLots > 0) {
+      const taux = (totals.lotsAttribues / totals.totalLots) * 100
+      console.log(`✅ Taux d'occupation moyen calculé depuis zones: ${taux.toFixed(2)}% (${totals.lotsAttribues}/${totals.totalLots} lots)`)
+      return taux
     }
     
-    const total = validZones.reduce((sum, zone) => {
-      const taux = parseFloat(zone.taux_occupation_pct || zone.occupation || zone.taux_occupation || 0)
-      return sum + taux
-    }, 0)
-    
-    const moyenne = total / validZones.length
-    console.log(`✅ Taux d'occupation moyen calculé: ${moyenne.toFixed(2)}% (${validZones.length} zones)`)
-    
-    return isNaN(moyenne) ? 0 : moyenne
-  }, [occupationData])
+    return 0
+  }, [occupationData, occupationSummary])
   
   // Calculer les métriques financières
   const financialMetrics = React.useMemo(() => {
     if (!financialData) {
-      return { tauxImpaye: 0, delaiMoyen: 0 }
+      return { tauxImpaye: 0, delaiMoyen: 0, tauxRecouvrement: 0 }
     }
     
-    // L'API retourne maintenant un objet avec les agrégations
-    const tauxPaiement = financialData.taux_paiement_moyen || 0
+    // Le backend retourne taux_paiement_pct ou taux_paiement_moyen selon la version
+    const tauxPaiement = financialData.taux_paiement_pct || financialData.taux_paiement_moyen || 0
     const delai = financialData.delai_moyen_paiement || 0
+    
+    // Calculer le taux de recouvrement: utiliser la valeur du summary ou calculer depuis les montants
+    let tauxRecouvrement = financialData.taux_recouvrement || financialData.taux_recouvrement_moyen || 0
+    
+    // Si le taux n'est pas disponible, le calculer depuis les montants
+    if (!tauxRecouvrement && financialData.montant_a_recouvrer) {
+      const montantRecouvre = parseFloat(financialData.montant_recouvre || 0)
+      const montantARecouvrer = parseFloat(financialData.montant_a_recouvrer || 0)
+      if (montantARecouvrer > 0) {
+        tauxRecouvrement = (montantRecouvre / montantARecouvrer) * 100
+      }
+    }
     
     console.log('💰 Métriques financières:', {
       tauxPaiement: tauxPaiement.toFixed(2),
       delai: delai,
+      tauxRecouvrement: tauxRecouvrement.toFixed(2),
       allFields: Object.keys(financialData)
     })
     
     return {
       tauxImpaye: 100 - tauxPaiement,
-      delaiMoyen: parseFloat(delai) || 0
+      delaiMoyen: parseFloat(delai) || 0,
+      tauxRecouvrement: parseFloat(tauxRecouvrement) || 0
     }
   }, [financialData])
   
@@ -397,6 +433,7 @@ export default function AlertsAnalytics() {
     ]
   }, [alerts])
   
+
   if (alertsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -587,12 +624,15 @@ export default function AlertsAnalytics() {
             </p>
             <BulletChart
               label="Taux de Recouvrement"
-              value={financialData?.taux_recouvrement_moyen || 0}
+              value={financialMetrics.tauxRecouvrement}
               threshold={60}
               warning={75}
               target={90}
               max={100}
             />
+            <p className="text-xs text-gray-500 mt-2 ml-2">
+              💰 Taux moyen de recouvrement des factures. Cible: 90% | Critique si &lt;60%
+            </p>
           </div>
         </div>
       </div>

@@ -6,6 +6,10 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    MartCreancesAgeesViewSet,
+    MartEmploisCreesViewSet,
+    MartImplantationSuiviViewSet,
+    MartIndemnisationsViewSet,
     MartPerformanceFinanciereViewSet,
     MartOccupationZonesViewSet,
     MartPortefeuilleClientsViewSet,
@@ -14,10 +18,7 @@ from .views import (
     AlertThresholdViewSet,
     ReportScheduleViewSet,
     UserViewSet,
-    MartImplantationSuiviViewSet,
-    MartIndemnisationsViewSet,
-    MartEmploisCreesViewSet,
-    MartCreancesAgeesViewSet,
+    SMTPConfigurationViewSet,
     login_view,
     logout_view,
     current_user_view,
@@ -73,6 +74,7 @@ router.register(r'alerts', AlertViewSet, basename='alerts')
 router.register(r'alert-thresholds', AlertThresholdViewSet, basename='alert-thresholds')
 router.register(r'reports', ReportScheduleViewSet, basename='reports')
 router.register(r'auth/users', UserViewSet, basename='users')
+router.register(r'smtp', SMTPConfigurationViewSet, basename='smtp')
 
 urlpatterns = [
     path('', include(router.urls)),
