@@ -622,7 +622,12 @@ const ReportConfig = () => {
                       checked={isRecurring}
                       onChange={(e) => {
                         setIsRecurring(e.target.checked)
-                        if (!e.target.checked) {
+                        if (e.target.checked) {
+                          // Définir le type de récurrence par défaut à 'minute' si ce n'est pas déjà défini
+                          if (recurrenceType === 'none') {
+                            setRecurrenceType('minute')
+                          }
+                        } else {
                           setRecurrenceType('none')
                         }
                       }}
