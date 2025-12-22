@@ -291,4 +291,39 @@ class BusinessRules:
                 if pct_premium < 20:
                     insights.append("📈 Opportunité de développement des clients premium")
         
+        elif category == 'impenses':
+            # Analyser impenses
+            nb_en_retard = sum(1 for row in data if row.get('est_en_retard'))
+            nb_total = len(data)
+            if nb_total > 0:
+                taux_retard = (nb_en_retard / nb_total) * 100
+                if taux_retard > 20:
+                    insights.append(f"🚨 {taux_retard:.1f}% des dossiers en retard - Action requise")
+                elif taux_retard > 10:
+                    insights.append(f"⚠️ {taux_retard:.1f}% des dossiers en retard - Surveillance recommandée")
+        
+        elif category == 'compliance':
+            # Analyser compliance
+            conventions_bloquees = sum(1 for row in data if row.get('statut') in ('BLOQUEE', 'EN_ATTENTE'))
+            nb_total = len(data)
+            if nb_total > 0 and conventions_bloquees > 0:
+                insights.append(f"⏸️ {conventions_bloquees} conventions bloquées ou en attente")
+                insights.append("📋 Déblocage recommandé pour accélérer le traitement")
+        
+        elif category == 'rh':
+            # Analyser productivité
+            taux_recouvrement = [row.get('taux_recouvrement_moyen_pct', 0) for row in data if row.get('taux_recouvrement_moyen_pct')]
+            if taux_recouvrement:
+                taux_moyen = sum(taux_recouvrement) / len(taux_recouvrement)
+                if taux_moyen > 85:
+                    insights.append(f"⭐ Excellent taux de recouvrement: {taux_moyen:.1f}%")
+                elif taux_moyen < 60:
+                    insights.append(f"📉 Taux de recouvrement faible: {taux_moyen:.1f}% - Formation recommandée")
+        
+        elif category == 'creances':
+            # Analyser créances
+            creances_critiques = sum(row.get('montant_total', 0) or 0 for row in data if row.get('niveau_risque') == 'CRITIQUE')
+            if creances_critiques > 0:
+                insights.append(f"🔴 Créances critiques: {creances_critiques} FCFA - Recouvrement immédiat")
+        
         return insights

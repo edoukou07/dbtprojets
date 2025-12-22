@@ -100,6 +100,71 @@ class TextNormalizer:
         'donne moi': 'affiche',
         'liste': 'affiche',
         'afficher': 'affiche',
+        
+        # === IMPENSES ===
+        'impense': 'impenses',
+        'dossier impense': 'impenses',
+        'dossiers impenses': 'impenses',
+        'suivi impense': 'impenses',
+        'retard dossier': 'impenses en retard',
+        'dossier retard': 'impenses en retard',
+        'phase impense': 'durée impenses par phase',
+        'temps phase': 'durée impenses par phase',
+        
+        # === COMPLIANCE ===
+        'convention': 'conventions',
+        'conventions': 'compliance',
+        'convention validation': 'compliance',
+        'etape validation': 'compliance',
+        'validation etape': 'compliance',
+        'domaine activite': 'conventions par domaine',
+        'secteur domaine': 'conventions par domaine',
+        'convention bloquee': 'conventions en retard',
+        'convention en attente': 'conventions en retard',
+        
+        # === RH ===
+        'agent': 'productivité agents',
+        'agents': 'productivité agents',
+        'collecte agent': 'productivité agents',
+        'agent collecte': 'productivité agents',
+        'productivite': 'productivité agents',
+        'performance agent': 'performance agents par',
+        'meilleur agent': 'performance agents par',
+        'dossier agent': 'durée traitement dossiers',
+        'durée dossier': 'durée traitement dossiers',
+        'temps dossier': 'durée traitement dossiers',
+        
+        # === CREANCES ===
+        'creance': 'créances âgées',
+        'creances': 'créances âgées',
+        'dette': 'créances âgées',
+        'dettes': 'créances âgées',
+        'facture impayee': 'créances âgées',
+        'facture impaye': 'factures impayées',
+        'impaye ancien': 'créances âgées',
+        'creance critique': 'créances critiques',
+        'creance ancienne': 'créances critiques',
+        'tranche anciennete': 'créances âgées',
+        
+        # === EMPLOIS ===
+        'emploi': 'emplois créés',
+        'emplois': 'emplois créés',
+        'emploi cree': 'emplois créés',
+        'creation emploi': 'emplois créés',
+        'secteur emploi': 'emplois par secteur',
+        
+        # === IMPLANTATION ===
+        'implantation': 'implantation',
+        'implanter': 'implantation',
+        'projet implantation': 'implantation',
+        'statut implantation': 'implantation',
+        
+        # === INDEMNISATION ===
+        'indemnisation': 'indemnisations',
+        'indemnisations': 'indemnisations',
+        'indemnite': 'indemnisations',
+        'indemnites': 'indemnisations',
+        'beneficiaire': 'indemnisations',
     }
     
     # Mots de comparaison
@@ -775,6 +840,263 @@ class RuleBasedQueryEngine:
                 description="Zones avec plus faible occupation",
                 params_extractor=self._extract_top_limit,
                 category="occupation"
+            ),
+            
+            # === IMPENSES (NEW) ===
+            QueryPattern(
+                patterns=["impenses", "dossiers impenses", "suivi impenses", "état impenses"],
+                sql_template="""
+                    SELECT statut_actuel,
+                           phase_actuelle,
+                           COUNT(*) as nombre_dossiers,
+                           AVG(duree_totale_jours) as duree_moyenne_jours,
+                           SUM(CASE WHEN est_en_retard THEN 1 ELSE 0 END) as dossiers_en_retard
+                    FROM dwh_marts_operationnel.mart_suivi_impenses
+                    GROUP BY statut_actuel, phase_actuelle
+                    ORDER BY nombre_dossiers DESC
+                """,
+                description="Vue d'ensemble des impenses par statut et phase",
+                category="impenses"
+            ),
+            
+            QueryPattern(
+                patterns=["impenses en retard", "dossiers en retard", "impenses retardataires"],
+                sql_template="""
+                    SELECT impense_id,
+                           statut_actuel,
+                           phase_actuelle,
+                           duree_totale_jours,
+                           zone_industrielle_code,
+                           niveau_alerte,
+                           retard_jours
+                    FROM dwh_marts_operationnel.mart_suivi_impenses
+                    WHERE est_en_retard = true
+                    ORDER BY retard_jours DESC
+                    LIMIT 20
+                """,
+                description="Dossiers impenses en retard",
+                category="impenses"
+            ),
+            
+            QueryPattern(
+                patterns=["durée impenses par phase", "temps par phase impenses", "temps traitement phases"],
+                sql_template="""
+                    SELECT phase_actuelle,
+                           COUNT(*) as nombre_dossiers,
+                           AVG(duree_phase_jours) as duree_moyenne_jours,
+                           MIN(duree_phase_jours) as min_jours,
+                           MAX(duree_phase_jours) as max_jours
+                    FROM dwh_marts_operationnel.mart_temps_traitement_impenses
+                    GROUP BY phase_actuelle
+                    ORDER BY duree_moyenne_jours DESC
+                """,
+                description="Temps de traitement moyen par phase",
+                category="impenses"
+            ),
+            
+            QueryPattern(
+                patterns=["impenses par zone", "dossiers par zone", "répartition zones impenses"],
+                sql_template="""
+                    SELECT zone_industrielle_code,
+                           COUNT(*) as nombre_dossiers,
+                           SUM(CASE WHEN est_en_retard THEN 1 ELSE 0 END) as dossiers_retard,
+                           AVG(duree_totale_jours) as duree_moyenne_jours,
+                           COUNT(DISTINCT agent_id) as agents_impliques
+                    FROM dwh_marts_operationnel.mart_suivi_impenses
+                    GROUP BY zone_industrielle_code
+                    ORDER BY nombre_dossiers DESC
+                """,
+                description="Distribution des impenses par zone",
+                category="impenses"
+            ),
+            
+            # === COMPLIANCE (NEW) ===
+            QueryPattern(
+                patterns=["compliance", "conventions", "statut conventions", "validation conventions"],
+                sql_template="""
+                    SELECT etape_actuelle,
+                           statut,
+                           COUNT(*) as nombre_conventions,
+                           AVG(EXTRACT(DAY FROM current_timestamp - date_creation)) as age_moyen_jours
+                    FROM dwh_marts_compliance.mart_conventions_validation
+                    GROUP BY etape_actuelle, statut
+                    ORDER BY nombre_conventions DESC
+                """,
+                description="Statut des conventions",
+                category="compliance"
+            ),
+            
+            QueryPattern(
+                patterns=["conventions par domaine", "domaines conventions", "répartition domaines compliance"],
+                sql_template="""
+                    SELECT libelle_domaine,
+                           COUNT(*) as nombre_conventions,
+                           SUM(montant_conventionne) as montant_total,
+                           AVG(montant_conventionne) as montant_moyen
+                    FROM dwh_marts_compliance.mart_conventions_validation
+                    GROUP BY libelle_domaine
+                    ORDER BY nombre_conventions DESC
+                """,
+                description="Conventions par domaine d'activité",
+                category="compliance"
+            ),
+            
+            QueryPattern(
+                patterns=["conventions en retard", "conventions bloquées", "problèmes conventions"],
+                sql_template="""
+                    SELECT numero_convention,
+                           raison_sociale,
+                           etape_actuelle,
+                           statut,
+                           age_convention_jours,
+                           montant_conventionne
+                    FROM dwh_marts_compliance.mart_conventions_validation
+                    WHERE age_convention_jours > 60
+                       OR etape_actuelle IN ('BLOQUEE', 'EN_ATTENTE')
+                    ORDER BY age_convention_jours DESC
+                    LIMIT 20
+                """,
+                description="Conventions en retard ou bloquées",
+                category="compliance"
+            ),
+            
+            # === RH (NEW) ===
+            QueryPattern(
+                patterns=["productivité agents", "performance agents", "agents productivité"],
+                sql_template="""
+                    SELECT nom_complet,
+                           matricule,
+                           nombre_collectes,
+                           montant_total_recouvre,
+                           taux_recouvrement_moyen_pct,
+                           taux_cloture_pct
+                    FROM dwh_marts_rh.mart_agents_productivite
+                    ORDER BY montant_total_recouvre DESC
+                    LIMIT 20
+                """,
+                description="Productivité des agents",
+                category="rh"
+            ),
+            
+            QueryPattern(
+                patterns=["performance agents par", "agents par performance", "meilleurs agents"],
+                sql_template="""
+                    SELECT nom_complet,
+                           collectes_cloturees,
+                           montant_total_recouvre,
+                           taux_recouvrement_moyen_pct
+                    FROM dwh_marts_rh.mart_agents_productivite
+                    WHERE taux_recouvrement_moyen_pct > 80
+                    ORDER BY taux_recouvrement_moyen_pct DESC
+                """,
+                description="Agents avec excellente performance",
+                category="rh"
+            ),
+            
+            QueryPattern(
+                patterns=["durée traitement dossiers", "temps moyen dossiers", "délai traitement dossiers"],
+                sql_template="""
+                    SELECT agent_id,
+                           nombre_dossiers,
+                           duree_moyenne_jours,
+                           nombre_dossiers_en_retard,
+                           taux_retard_pct
+                    FROM dwh_marts_rh.mart_temps_traitement_dossiers
+                    ORDER BY duree_moyenne_jours DESC
+                    LIMIT 20
+                """,
+                description="Durée de traitement par agent",
+                category="rh"
+            ),
+            
+            # === CREANCES AGEES (NEW) ===
+            QueryPattern(
+                patterns=["créances âgées", "factures impayées", "impayés par tranche", "créances anciennes"],
+                sql_template="""
+                    SELECT tranche_anciennete,
+                           niveau_risque,
+                           COUNT(*) as nombre_factures,
+                           SUM(montant_total) as montant_total,
+                           AVG(montant_total) as montant_moyen
+                    FROM dwh_marts_financier.mart_creances_agees
+                    GROUP BY tranche_anciennete, niveau_risque
+                    ORDER BY CASE 
+                        WHEN tranche_anciennete = '> 180 jours' THEN 1
+                        WHEN tranche_anciennete = '91-180 jours' THEN 2
+                        WHEN tranche_anciennete = '61-90 jours' THEN 3
+                        WHEN tranche_anciennete = '31-60 jours' THEN 4
+                        WHEN tranche_anciennete = '0-30 jours' THEN 5
+                        ELSE 6
+                    END
+                """,
+                description="Créances âgées par tranche d'ancienneté",
+                category="creances"
+            ),
+            
+            QueryPattern(
+                patterns=["créances critiques", "impayés > 180", "dettes anciennes"],
+                sql_template="""
+                    SELECT numero_facture,
+                           date_echeance,
+                           montant_total,
+                           tranche_anciennete,
+                           delai_paiement_jours
+                    FROM dwh_marts_financier.mart_creances_agees
+                    WHERE tranche_anciennete IN ('> 180 jours', '91-180 jours')
+                    ORDER BY delai_paiement_jours DESC
+                    LIMIT 30
+                """,
+                description="Créances critiques (> 90 jours)",
+                category="creances"
+            ),
+            
+            # === EMPLOIS CREES (NEW) ===
+            QueryPattern(
+                patterns=["emplois créés", "nombre emplois", "emplois par secteur"],
+                sql_template="""
+                    SELECT secteur,
+                           zone,
+                           COUNT(*) as nombre_emplois_crees,
+                           SUM(salaire_mensuel) as masse_salariale
+                    FROM dwh_marts_operationnel.mart_emplois_crees
+                    GROUP BY secteur, zone
+                    ORDER BY nombre_emplois_crees DESC
+                """,
+                description="Emplois créés par secteur et zone",
+                category="emplois"
+            ),
+            
+            # === IMPLANTATION (NEW) ===
+            QueryPattern(
+                patterns=["implantation", "statut implantation", "implantations suivi"],
+                sql_template="""
+                    SELECT zone,
+                           statut_implantation,
+                           COUNT(*) as nombre_projets,
+                           SUM(montant_investi) as montant_total,
+                           AVG(montant_investi) as montant_moyen
+                    FROM dwh_marts_operationnel.mart_implantation_suivi
+                    GROUP BY zone, statut_implantation
+                    ORDER BY nombre_projets DESC
+                """,
+                description="Suivi des implantations par statut",
+                category="implantation"
+            ),
+            
+            # === INDEMNISATIONS (NEW) ===
+            QueryPattern(
+                patterns=["indemnisations", "montant indemnisations", "indemnisations par"],
+                sql_template="""
+                    SELECT type_indemnisation,
+                           COUNT(*) as nombre_beneficiaires,
+                           SUM(montant_total) as montant_total,
+                           AVG(montant_total) as montant_moyen
+                    FROM dwh_marts_financier.mart_indemnisations
+                    GROUP BY type_indemnisation
+                    ORDER BY montant_total DESC
+                """,
+                description="Indemnisations par type",
+                category="indemnisations"
             ),
         ]
         

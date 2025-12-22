@@ -226,6 +226,20 @@ class ChatService:
             answer += self._summarize_occupation(data, row_count)
         elif category == 'clients':
             answer += self._summarize_clients(data, row_count)
+        elif category == 'impenses':
+            answer += self._summarize_impenses(data, row_count)
+        elif category == 'compliance':
+            answer += self._summarize_compliance(data, row_count)
+        elif category == 'rh':
+            answer += self._summarize_rh(data, row_count)
+        elif category == 'creances':
+            answer += self._summarize_creances(data, row_count)
+        elif category == 'emplois':
+            answer += self._summarize_emplois(data, row_count)
+        elif category == 'implantation':
+            answer += self._summarize_implantation(data, row_count)
+        elif category == 'indemnisations':
+            answer += self._summarize_indemnisations(data, row_count)
         else:
             answer += f"📊 {row_count} résultat(s) trouvé(s).\n"
         
@@ -273,6 +287,89 @@ class ChatService:
     def _summarize_clients(self, data: List[Dict], row_count: int) -> str:
         """Résumé pour données clients"""
         return f"👥 {row_count} entreprise(s) trouvée(s).\n"
+    
+    def _summarize_impenses(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données impenses"""
+        summary = f"📋 {row_count} dossier(s) analysé(s).\n\n"
+        
+        # Compter les en retard
+        en_retard = sum(1 for r in data if r.get('est_en_retard'))
+        if en_retard > 0:
+            pct = (en_retard / row_count * 100) if row_count > 0 else 0
+            summary += f"🚨 {en_retard} en retard ({pct:.1f}%)\n"
+        
+        # Durée moyenne
+        if 'duree_moyenne_jours' in data[0]:
+            duree_moy = sum(r.get('duree_moyenne_jours', 0) or 0 for r in data) / len(data)
+            summary += f"⏱️ Durée moyenne: **{duree_moy:.1f} jours**\n"
+        
+        return summary
+    
+    def _summarize_compliance(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données compliance"""
+        summary = f"✅ {row_count} convention(s) analysée(s).\n\n"
+        
+        # Compter les statuts
+        bloquees = sum(1 for r in data if r.get('statut') in ('BLOQUEE', 'EN_ATTENTE'))
+        if bloquees > 0:
+            summary += f"⏸️ {bloquees} convention(s) bloquée(s) ou en attente\n"
+        
+        return summary
+    
+    def _summarize_rh(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données RH"""
+        summary = f"👤 {row_count} agent(s) analysé(s).\n\n"
+        
+        # Productivité moyenne
+        if 'taux_recouvrement_moyen_pct' in data[0]:
+            taux_moyen = sum(r.get('taux_recouvrement_moyen_pct', 0) or 0 for r in data) / len(data)
+            summary += f"📊 Taux recouvrement moyen: **{taux_moyen:.1f}%**\n"
+        
+        return summary
+    
+    def _summarize_creances(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données créances"""
+        summary = f"💳 {row_count} tranche(s) d'ancienneté analysée(s).\n\n"
+        
+        # Montant total
+        montant_total = sum(r.get('montant_total', 0) or 0 for r in data)
+        if montant_total > 0:
+            summary += f"💰 Montant total: **{self._format_currency(montant_total)}**\n"
+        
+        return summary
+    
+    def _summarize_emplois(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données emplois"""
+        summary = f"💼 {row_count} secteur(s)/zone(s) analysé(s).\n\n"
+        
+        # Total emplois
+        if 'nombre_emplois_crees' in data[0]:
+            total = sum(r.get('nombre_emplois_crees', 0) or 0 for r in data)
+            summary += f"📈 Total emplois créés: **{total}**\n"
+        
+        return summary
+    
+    def _summarize_implantation(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données implantation"""
+        summary = f"🏢 {row_count} projet(s) analysé(s).\n\n"
+        
+        # Montant investi
+        if 'montant_investi' in data[0]:
+            montant = sum(r.get('montant_investi', 0) or 0 for r in data)
+            summary += f"💵 Montant investi: **{self._format_currency(montant)}**\n"
+        
+        return summary
+    
+    def _summarize_indemnisations(self, data: List[Dict], row_count: int) -> str:
+        """Résumé pour données indemnisations"""
+        summary = f"💸 {row_count} type(s) d'indemnisation analysé(s).\n\n"
+        
+        # Montant total
+        if 'montant_total' in data[0]:
+            montant = sum(r.get('montant_total', 0) or 0 for r in data)
+            summary += f"💰 Montant total: **{self._format_currency(montant)}**\n"
+        
+        return summary
     
     def _format_currency(self, amount) -> str:
         """Formate un montant en FCFA"""
