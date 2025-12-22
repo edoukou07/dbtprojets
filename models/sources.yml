@@ -120,3 +120,97 @@ sources:
             description: "Last name"
           - name: prenoms
             description: "First names"
+
+      - name: detenteurs
+        description: "Land holders/occupants with rights"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: id_detenteur
+            description: "External holder ID"
+          - name: nom
+            description: "Last name"
+          - name: prenom
+            description: "First name"
+          - name: civilite
+            description: "Title (M, Mme, Mlle)"
+          - name: type_document
+            description: "ID document type"
+          - name: numero_piece
+            description: "ID document number"
+
+      - name: workflow_historiques
+        description: "Workflow action history for impenses - tracks all actions on impense requests"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: impense_id
+            description: "Reference to the impense"
+          - name: etape
+            description: "Step number V1 (1-28)"
+          - name: phase
+            description: "Phase number V2 (1-6)"
+          - name: action
+            description: "Action type (CREATION, VALIDATION, REJET, etc.)"
+          - name: statut_avant
+            description: "Status before action"
+          - name: statut_apres
+            description: "Status after action"
+          - name: user_id
+            description: "User who performed the action"
+          - name: user_role
+            description: "Role of the user at action time"
+          - name: date_action
+            description: "Timestamp of the action"
+          - name: donnees_avant
+            description: "Data before modification (JSONB)"
+          - name: donnees_apres
+            description: "Data after modification (JSONB)"
+
+      - name: types_demande_impense
+        description: "Types of impense requests (voluntary cession, administrative withdrawal, etc.)"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: code
+            description: "Type code (CESSION_VOLONTAIRE, RETRAIT_ADMINISTRATIF)"
+          - name: libelle
+            description: "Display label"
+          - name: description
+            description: "Full description"
+          - name: actif
+            description: "Is type active"
+          - name: ordre
+            description: "Display order"
+
+      - name: experts
+        description: "Expert evaluators for impense assessments"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: nom
+            description: "Expert full name"
+          - name: specialite
+            description: "Area of expertise"
+          - name: numero_agrement
+            description: "License/certification number"
+          - name: date_agrement
+            description: "Certification date"
+          - name: organisme_agrement
+            description: "Certifying organization"
+          - name: actif
+            description: "Is expert active"
+
+      - name: impenses
+        description: "Impense/compensation requests"
+        columns:
+          - name: id
+            description: "Unique identifier"
+          - name: numero_dossier
+            description: "File number"
+          - name: lot_id
+            description: "Reference to the lot"
+          - name: entreprise_id
+            description: "Reference to the company"
+          - name: statut
+            description: "Current status"

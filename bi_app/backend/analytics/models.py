@@ -434,3 +434,147 @@ class MartCreancesAgees(models.Model):
         managed = False
         db_table = '"dwh_marts_financier"."mart_creances_agees"'
         ordering = ['-annee', '-mois']
+
+
+class MartSuiviImpenses(models.Model):
+    """Mart Suivi Impenses - Tableau de bord complet des dossiers d'impenses"""
+    
+    # Identification
+    impense_key = models.TextField(primary_key=True)
+    impense_id = models.IntegerField()
+    numero_dossier = models.CharField(max_length=255)
+    
+    # Lot et Zone
+    lot_id = models.IntegerField(null=True, blank=True)
+    lot_numero = models.CharField(max_length=100, null=True, blank=True)
+    lot_superficie_m2 = models.FloatField(null=True, blank=True)
+    lot_prix = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    lot_statut = models.CharField(max_length=50, null=True, blank=True)
+    lot_viabilite = models.BooleanField(null=True, blank=True)
+    zone_industrielle_id = models.IntegerField(null=True, blank=True)
+    zone_industrielle_code = models.CharField(max_length=50, null=True, blank=True)
+    zone_industrielle_libelle = models.CharField(max_length=255, null=True, blank=True)
+    zone_industrielle_adresse = models.TextField(null=True, blank=True)
+    
+    # Entreprise
+    entreprise_id = models.IntegerField(null=True, blank=True)
+    nom_operateur = models.TextField(null=True, blank=True)
+    nom_entreprise = models.CharField(max_length=255, null=True, blank=True)
+    secteur_activite = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Statut et Phase
+    statut_actuel = models.TextField(null=True, blank=True)
+    statut_libelle = models.TextField(null=True, blank=True)
+    phase_actuelle = models.IntegerField(null=True, blank=True)
+    phase_actuelle_libelle = models.TextField(null=True, blank=True)
+    type_demande = models.TextField(null=True, blank=True)
+    motif_cession = models.TextField(null=True, blank=True)
+    
+    # Décisions
+    decision_verification = models.CharField(max_length=50, null=True, blank=True)
+    resultat_analyse = models.CharField(max_length=50, null=True, blank=True)
+    a_decision_verification = models.BooleanField(null=True, blank=True)
+    a_resultat_analyse = models.BooleanField(null=True, blank=True)
+    est_analyse = models.BooleanField(null=True, blank=True)
+    est_cloture = models.BooleanField(null=True, blank=True)
+    
+    # Dates clés
+    date_creation = models.DateTimeField(null=True, blank=True)
+    date_emission = models.DateTimeField(null=True, blank=True)
+    date_transmission = models.DateTimeField(null=True, blank=True)
+    date_analyse = models.DateTimeField(null=True, blank=True)
+    date_premiere_action = models.DateTimeField(null=True, blank=True)
+    date_derniere_action = models.DateTimeField(null=True, blank=True)
+    
+    # Indicateurs temporels
+    semaine_creation = models.FloatField(null=True, blank=True)
+    mois_creation = models.TextField(null=True, blank=True)
+    trimestre_creation = models.TextField(null=True, blank=True)
+    jour_semaine_creation = models.FloatField(null=True, blank=True)
+    est_weekend_creation = models.BooleanField(null=True, blank=True)
+    anciennete_dossier_jours = models.FloatField(null=True, blank=True)
+    
+    # Durées
+    duree_totale_jours = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    duree_totale_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    temps_phase1_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    temps_phase2_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    temps_phase3_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    temps_phase4_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    temps_phase5_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    temps_phase6_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    phase_la_plus_longue = models.TextField(null=True, blank=True)
+    
+    # Métriques workflow
+    nb_actions_total = models.BigIntegerField(null=True, blank=True)
+    nb_types_actions = models.BigIntegerField(null=True, blank=True)
+    nb_agents_impliques = models.BigIntegerField(null=True, blank=True)
+    nb_roles_impliques = models.BigIntegerField(null=True, blank=True)
+    nb_validations = models.BigIntegerField(null=True, blank=True)
+    nb_rejets = models.BigIntegerField(null=True, blank=True)
+    nb_corrections = models.BigIntegerField(null=True, blank=True)
+    nb_clotures = models.BigIntegerField(null=True, blank=True)
+    derniere_phase_atteinte = models.IntegerField(null=True, blank=True)
+    
+    # Actions spécifiques
+    nb_retours = models.BigIntegerField(null=True, blank=True)
+    nb_soumissions = models.BigIntegerField(null=True, blank=True)
+    nb_documents_uploades = models.BigIntegerField(null=True, blank=True)
+    nb_invalidations_recevabilite = models.BigIntegerField(null=True, blank=True)
+    nb_validations_recevabilite = models.BigIntegerField(null=True, blank=True)
+    nb_allers_retours = models.BigIntegerField(null=True, blank=True)
+    
+    # Interventions par rôle
+    nb_interventions_admin = models.BigIntegerField(null=True, blank=True)
+    nb_interventions_operateur = models.BigIntegerField(null=True, blank=True)
+    nb_interventions_utilisateur = models.BigIntegerField(null=True, blank=True)
+    ratio_admin_operateur = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Agent principal
+    agent_principal_id = models.IntegerField(null=True, blank=True)
+    agent_principal_role = models.TextField(null=True, blank=True)
+    nb_actions_agent_principal = models.BigIntegerField(null=True, blank=True)
+    
+    # Délais
+    delai_moyen_reponse_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    delai_max_reponse_heures = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True)
+    
+    # Performance
+    taux_rejet_pct = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    taux_correction_pct = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    taux_first_pass_pct = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    efficacite_actions_par_jour = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    jours_depuis_derniere_action = models.FloatField(null=True, blank=True)
+    
+    # Qualité
+    a_documents_complets = models.BooleanField(null=True, blank=True)
+    recevabilite_validee = models.BooleanField(null=True, blank=True)
+    
+    # Prédiction
+    duree_estimee_restante_jours = models.IntegerField(null=True, blank=True)
+    date_estimee_cloture = models.DateField(null=True, blank=True)
+    complexite_score = models.IntegerField(null=True, blank=True)
+    
+    # Alertes
+    est_inactif = models.BooleanField(null=True, blank=True)
+    est_en_retard = models.BooleanField(null=True, blank=True)
+    a_rejets_multiples = models.BooleanField(null=True, blank=True)
+    a_corrections_excessives = models.BooleanField(null=True, blank=True)
+    risque_abandon = models.BooleanField(null=True, blank=True)
+    score_sante_dossier = models.IntegerField(null=True, blank=True)
+    niveau_alerte = models.TextField(null=True, blank=True)
+    
+    # SLA
+    sla_phase1_respecte = models.BooleanField(null=True, blank=True)
+    sla_phase2_respecte = models.BooleanField(null=True, blank=True)
+    sla_phase3_respecte = models.BooleanField(null=True, blank=True)
+    nb_sla_depasses = models.IntegerField(null=True, blank=True)
+    taux_conformite_sla_pct = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    
+    # Metadata
+    dbt_created_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        managed = False
+        db_table = '"dwh_marts_operationnel"."mart_suivi_impenses"'
+        ordering = ['-date_creation']

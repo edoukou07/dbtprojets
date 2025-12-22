@@ -49,3 +49,124 @@
 20:29:18.996505 [info ]: Starting LSP server...
 20:29:20.180637 [info ]: Started loading project
 20:29:21.110510 [info ]: Finished loading project [  0.93s]
+==================== 2025-12-20T10:14:24.772402Z | 6f5ddb7d-03fd-4014-91e7-37ff367cacb0 ====================
+10:14:24.772582 [info ]: Starting dbt LSP server
+10:14:24.772691 [info ]: Connecting to LSP client on port 8001
+10:14:24.781218 [info ]: Successfully connected to LSP client
+10:14:24.781274 [info ]: Creating LSP service...
+10:14:24.963837 [info ]: Creating LSP server...
+10:14:24.963875 [info ]: Starting LSP server...
+10:14:26.916783 [info ]: Started loading project
+10:14:26.935972 [info ]: Finished loading project [  0.02s]
+10:27:03.067236 [info ]: Started loading project
+10:27:03.115414 [info ]: Finished loading project [  0.05s]
+10:27:03.964061 [info ]: Started loading project
+10:27:03.966124 [info ]: Finished loading project [  0.00s]
+10:27:04.196397 [info ]: Started loading project
+10:27:04.198632 [info ]: Finished loading project [  0.00s]
+10:27:11.838380 [info ]: Started loading project
+10:27:11.840584 [info ]: Finished loading project [  0.00s]
+10:27:12.738834 [info ]: Started loading project
+10:27:12.741405 [info ]: Finished loading project [  0.00s]
+10:27:12.915143 [info ]: Started loading project
+10:27:12.917126 [info ]: Finished loading project [  0.00s]
+10:27:34.579322 [info ]: Started loading project
+10:27:34.581189 [info ]: Finished loading project [  0.00s]
+10:27:35.821271 [info ]: Started loading project
+10:27:35.823352 [info ]: Finished loading project [  0.00s]
+10:27:35.988338 [info ]: Started loading project
+10:27:35.990084 [info ]: Finished loading project [  0.00s]
+10:27:53.846244 [info ]: Started loading project
+10:27:53.848474 [info ]: Finished loading project [  0.00s]
+10:27:55.029391 [info ]: Started loading project
+10:27:55.031696 [info ]: Finished loading project [  0.00s]
+10:27:55.246347 [info ]: Started loading project
+10:27:55.247995 [info ]: Finished loading project [  0.00s]
+10:28:19.113318 [info ]: Started loading project
+10:28:19.115305 [info ]: Finished loading project [  0.00s]
+10:28:20.741557 [info ]: Started loading project
+10:28:20.744122 [info ]: Finished loading project [  0.00s]
+10:28:20.878480 [info ]: Started loading project
+10:28:20.879934 [info ]: Finished loading project [  0.00s]
+10:29:12.806684 [info ]: Started loading project
+10:29:12.808860 [info ]: Finished loading project [  0.00s]
+10:29:15.668163 [info ]: Started loading project
+10:29:15.670903 [info ]: Finished loading project [  0.00s]
+10:29:57.877002 [info ]: Started loading project
+10:29:57.878656 [info ]: Finished loading project [  0.00s]
+10:30:00.644358 [info ]: Started loading project
+10:30:00.646402 [info ]: Finished loading project [  0.00s]
+10:33:14.827479 [info ]: Started loading project
+10:33:14.829563 [info ]: Finished loading project [  0.00s]
+10:33:15.080072 [info ]: Started loading project
+10:33:15.081858 [info ]: Finished loading project [  0.00s]
+10:33:41.195456 [info ]: Started loading project
+10:33:41.198863 [info ]: Finished loading project [  0.00s]
+10:33:41.486771 [info ]: Started loading project
+10:33:41.488285 [info ]: Finished loading project [  0.00s]
+10:33:53.236066 [info ]: Started loading project
+10:33:53.237697 [info ]: Finished loading project [  0.00s]
+10:33:53.528039 [info ]: Started loading project
+10:33:53.529576 [info ]: Finished loading project [  0.00s]
+10:34:00.522247 [info ]: Started loading project
+10:34:00.524258 [info ]: Finished loading project [  0.00s]
+10:34:00.819666 [info ]: Started loading project
+10:34:00.821098 [info ]: Finished loading project [  0.00s]
+10:34:43.443739 [info ]: Started loading project
+10:34:43.445848 [info ]: Finished loading project [  0.00s]
+10:34:43.727577 [info ]: Started loading project
+10:34:43.729375 [info ]: Finished loading project [  0.00s]
+10:35:59.230067 [info ]: Started loading project
+10:35:59.232298 [info ]: Finished loading project [  0.00s]
+10:35:59.619020 [info ]: Started loading project
+10:35:59.620838 [info ]: Finished loading project [  0.00s]
+10:36:03.561417 [info ]: Started loading project
+10:36:03.563509 [info ]: Finished loading project [  0.00s]
+10:36:03.833810 [info ]: Started loading project
+10:36:03.835751 [info ]: Finished loading project [  0.00s]
+10:36:07.770870 [info ]: Started loading project
+10:36:07.773326 [info ]: Finished loading project [  0.00s]
+10:36:08.016364 [info ]: Started loading project
+10:36:08.017919 [info ]: Finished loading project [  0.00s]
+10:36:47.447774 [info ]: Started loading project
+10:36:47.450353 [info ]: Finished loading project [  0.00s]
+10:36:47.981929 [info ]: Started loading project
+10:36:47.983701 [info ]: Finished loading project [  0.00s]
+10:37:19.459504 [info ]: Started loading project
+10:37:19.462035 [info ]: Finished loading project [  0.00s]
+10:37:19.581162 [info ]: Started loading project
+10:37:19.582603 [info ]: Finished loading project [  0.00s]
+11:06:24.874737 [info ]: Started loading project
+11:06:24.876575 [info ]: Finished loading project [  0.00s]
+11:06:24.934524 [info ]: Started loading project
+11:06:24.936349 [info ]: Finished loading project [  0.00s]
+11:06:25.188141 [info ]: Started loading project
+11:06:25.189989 [info ]: Finished loading project [  0.00s]
+12:02:01.527258 [info ]: Started loading project
+12:02:01.530039 [info ]: Finished loading project [  0.00s]
+12:02:01.779333 [info ]: Started loading project
+12:02:01.781197 [info ]: Finished loading project [  0.00s]
+12:02:24.567320 [info ]: Started loading project
+12:02:24.569239 [info ]: Finished loading project [  0.00s]
+12:02:24.826837 [info ]: Started loading project
+12:02:24.828580 [info ]: Finished loading project [  0.00s]
+12:03:21.385969 [info ]: Started loading project
+12:03:21.388433 [info ]: Finished loading project [  0.00s]
+12:03:21.551639 [info ]: Started loading project
+12:03:21.553526 [info ]: Finished loading project [  0.00s]
+12:06:56.292162 [info ]: Started loading project
+12:06:56.294160 [info ]: Finished loading project [  0.00s]
+12:06:56.591762 [info ]: Started loading project
+12:06:56.594006 [info ]: Finished loading project [  0.00s]
+12:07:30.266633 [info ]: Started loading project
+12:07:30.268717 [info ]: Finished loading project [  0.00s]
+12:07:31.112559 [info ]: Started loading project
+12:07:31.114733 [info ]: Finished loading project [  0.00s]
+12:08:03.542699 [info ]: Started loading project
+12:08:03.545069 [info ]: Finished loading project [  0.00s]
+12:08:04.296353 [info ]: Started loading project
+12:08:04.298132 [info ]: Finished loading project [  0.00s]
+12:58:24.617990 [info ]: Started loading project
+12:58:24.627142 [info ]: Finished loading project [  0.01s]
+12:58:25.112025 [info ]: Started loading project
+12:58:25.115666 [info ]: Finished loading project [  0.00s]

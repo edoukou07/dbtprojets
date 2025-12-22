@@ -161,11 +161,11 @@ export default function ComplianceInfractions() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Tableau de Bord Conformité & Infractions</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Infractions</h2>
         <ExportButton
           data={exportData}
           filename="compliance_infractions"
-          title="Rapport Conformité - Infractions"
+          title="Rapport Infractions"
         />
       </div>
 

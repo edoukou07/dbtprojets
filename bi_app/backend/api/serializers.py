@@ -15,7 +15,8 @@ from analytics.models import (
     MartImplantationSuivi,
     MartIndemnisations,
     MartEmploisCrees,
-    MartCreancesAgees
+    MartCreancesAgees,
+    MartSuiviImpenses
 )
 from .models import SMTPConfiguration
 
@@ -471,3 +472,26 @@ class MartCreancesAgeesSerializer(serializers.ModelSerializer):
     class Meta:
         model = MartCreancesAgees
         fields = '__all__'
+
+
+class MartSuiviImpensesSerializer(serializers.ModelSerializer):
+    """Serializer pour le mart de suivi des impenses"""
+    class Meta:
+        model = MartSuiviImpenses
+        fields = '__all__'
+
+
+class MartSuiviImpensesSummarySerializer(serializers.Serializer):
+    """Serializer pour le résumé des KPIs impenses"""
+    total_dossiers = serializers.IntegerField()
+    dossiers_en_cours = serializers.IntegerField()
+    dossiers_clotures = serializers.IntegerField()
+    dossiers_critiques = serializers.IntegerField()
+    dossiers_en_alerte = serializers.IntegerField()
+    dossiers_en_retard = serializers.IntegerField()
+    score_sante_moyen = serializers.FloatField()
+    taux_first_pass_moyen = serializers.FloatField()
+    duree_moyenne_jours = serializers.FloatField()
+    taux_conformite_sla_moyen = serializers.FloatField()
+    nb_actions_moyen = serializers.FloatField()
+    nb_allers_retours_moyen = serializers.FloatField()
